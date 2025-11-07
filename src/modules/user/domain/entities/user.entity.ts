@@ -1,8 +1,6 @@
-export enum Role {
-    ADMIN = 'ADMIN',
-    USER = 'USER',
-}
-  
+import { Role } from "../enums/role.enum";
+
+ 
 export class User {
 constructor(
     public readonly id: string,

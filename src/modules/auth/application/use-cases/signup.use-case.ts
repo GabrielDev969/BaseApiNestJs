@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { Role, User } from "src/modules/user/domain/entities/user.entity";
+import { User } from "src/modules/user/domain/entities/user.entity";
 import { IUserRepository } from "src/modules/user/domain/repositories/user.repository";
 import { SignupDto } from "../../dtos/signup.dto";
 import { hash } from 'bcryptjs';
