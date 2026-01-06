@@ -9,6 +9,8 @@ const { Pool } = pkg;
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private pool: InstanceType<typeof Pool>;
+
   constructor(){
     const pool = new Pool({
       connectionString: env('DATABASE_URL'),
@@ -17,6 +19,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     super({
       adapter,
     });
+    this.pool = pool;
   }
   
   async onModuleInit() {
@@ -25,6 +28,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy() {
     await this.$disconnect();
-    await (this as any).adapter.client.end();
+    await this.pool.end();
   }
 }
