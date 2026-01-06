@@ -1,4 +1,3 @@
-# scripts/test-e2e.ps1
 $ErrorActionPreference = "Stop"
 
 Write-Host "[DB] Subindo banco de testes..." -ForegroundColor Cyan
