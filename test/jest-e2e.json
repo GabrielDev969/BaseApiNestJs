@@ -11,5 +11,6 @@
       "^test/(.*)$": "<rootDir>/$1"
     },
     "setupFilesAfterEnv": ["<rootDir>/setup.ts"],
-    "testTimeout": 30000
+    "testTimeout": 30000,
+    "verbose": true
   }
