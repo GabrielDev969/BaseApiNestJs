@@ -14,6 +14,7 @@ export const createUser = async (dto: SignupDto): Promise<User> => {
             email: dto.email,
             password: passwordHash,
             name: dto.name,
+            role: Role.USER,
         },
     });
     return new User(user.id, user.email, user.password, user.name, user.role as Role, user.createdAt, user.updatedAt);
@@ -27,6 +28,7 @@ export const createAdminUser = async (): Promise<User> => {
             email: 'admin@example.com',
             password: passwordHash,
             name: 'Admin',
+            role: Role.ADMIN,
         },
     });
     return new User(user.id, user.email, user.password, user.name, user.role as Role, user.createdAt, user.updatedAt);

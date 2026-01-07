@@ -46,4 +46,7 @@ export const cleanDatabase = async (): Promise<void> => {
 export const disconnectTestDatabase = async (): Promise<void> => {
     const client = getPrismaTestClient();
     await client.$disconnect();
+    if(pool) {
+        await pool.end();
+    }
 };
