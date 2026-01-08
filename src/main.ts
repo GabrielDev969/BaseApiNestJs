@@ -33,8 +33,10 @@ async function bootstrap() {
     }
   ));
 
-  app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+  app.setGlobalPrefix('api', {
+    exclude: ['monitoring', 'monitoring/api/data'],
+  });
 
   const config = new DocumentBuilder()
     .setTitle('API — Clean Architecture')
@@ -52,5 +54,6 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3000);
   console.log(`Server is running on port ${process.env.PORT ?? 3000}`);
   console.log(`Docs are running on http://localhost:${process.env.PORT ?? 3000}/docs`);
+  console.log(`📊 Monitoramento disponível em: http://localhost:${process.env.PORT ?? 3000}/monitoring/`);
 }
 bootstrap();
