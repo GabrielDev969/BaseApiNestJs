@@ -5,3 +5,174 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  name         String
+  passwordHash String?
+
+  twoFactorSecret  String? 
+  twoFactorEnabled Boolean @default(false)
+  recoveryCodes    String?
+
+  oauthAccounts   OAuthAccount[]
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  memberships     WorkspaceMember[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
+  invitationsSent Invitation[]      @relation("InvitedBy")
+
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model OAuthAccount {
+  id         String @id @default(uuid())
+  provider   String
+  providerId String
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([provider, providerId])
+  @@index([userId])
+}
+
+model Workspace {
+  id         String  @id @default(uuid())
+  name       String
+  slug       String  @unique
+  isPersonal Boolean @default(false)
+  ownerId    String
+  owner      User    @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+
+  members     WorkspaceMember[]
+  roles       Role[]
+  invitations Invitation[]
+  auditLogs   AuditLog[]
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([deletedAt])
+}
+
+model WorkspaceMember {
+  id          String @id @default(uuid())
+  userId      String
+  workspaceId String
+  roleId      String
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  role      Role      @relation(fields: [roleId], references: [id])
+
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  email       String
+  workspaceId String
+  roleId      String
+  invitedById String
+  token       String   @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model Role {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  workspaceId String
+  isSystem    Boolean @default(false)
+
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  members     WorkspaceMember[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, name])
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  key         String  @unique
+  description String?
+  category    String
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Session {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  workspaceId String?
+  action      String
+  resource    String? 
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([action])
+  @@index([createdAt])
+}
