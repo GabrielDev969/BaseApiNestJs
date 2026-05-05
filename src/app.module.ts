@@ -5,6 +5,8 @@ import { env } from './config/env.config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@shared/database/prisma.module';
 import { Request, Response } from 'express';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -39,6 +41,6 @@ import { Request, Response } from 'express';
     PrismaModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}
