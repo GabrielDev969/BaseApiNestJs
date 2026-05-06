@@ -9,6 +9,9 @@ export interface CreateUserData {
 export interface UpdateUserData {
   email?: string;
   name?: string;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string | null;
+  recoveryCodes?: string | null;
 }
 
 export interface FindManyByWorkspaceParams {
@@ -23,16 +26,17 @@ export interface FindManyResult {
   total: number;
 }
 
-export interface IUsersRepository {
-  create(data: CreateUserData): Promise<User>;
-  findById(id: string): Promise<User | null>;
-  findByIdInWorkspace(id: string, workspaceId: string): Promise<User | null>;
-  findByEmail(email: string): Promise<User | null>;
-  findManyByWorkspace(
+export abstract class UsersRepository {
+  abstract create(data: CreateUserData): Promise<User>;
+  abstract findById(id: string): Promise<User | null>;
+  abstract findByIdInWorkspace(
+    id: string,
+    workspaceId: string,
+  ): Promise<User | null>;
+  abstract findByEmail(email: string): Promise<User | null>;
+  abstract findManyByWorkspace(
     params: FindManyByWorkspaceParams,
   ): Promise<FindManyResult>;
-  update(id: string, data: UpdateUserData): Promise<User>;
-  softDelete(id: string): Promise<void>;
+  abstract update(id: string, data: UpdateUserData): Promise<User>;
+  abstract softDelete(id: string): Promise<void>;
 }
-
-export const USERS_REPOSITORY = Symbol('IUsersRepository');

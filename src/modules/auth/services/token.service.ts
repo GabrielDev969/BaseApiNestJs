@@ -36,4 +36,22 @@ export class TokenService {
       secret: env.JWT_REFRESH_SECRET,
     });
   }
+
+  signChallengeToken(userId: string): Promise<string> {
+    return this.jwt.signAsync(
+      { sub: userId, type: '2fa-challenge' },
+      { secret: env.JWT_ACCESS_SECRET, expiresIn: '5m' },
+    );
+  }
+
+  async verifyChallengeToken(token: string): Promise<string> {
+    const payload = await this.jwt.verifyAsync<{ sub: string; type: string }>(
+      token,
+      { secret: env.JWT_ACCESS_SECRET },
+    );
+    if (payload.type !== '2fa-challenge') {
+      throw new Error('Invalid challenge token');
+    }
+    return payload.sub;
+  }
 }

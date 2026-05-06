@@ -1,18 +1,13 @@
 import {
   Injectable,
-  Inject,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { SESSIONS_REPOSITORY } from '../repositories/sessions.repository.interface';
-import type { ISessionsRepository } from '../repositories/sessions.repository.interface';
+import { SessionsRepository } from '../repositories/sessions.repository.interface';
 
 @Injectable()
 export class RevokeSessionUseCase {
-  constructor(
-    @Inject(SESSIONS_REPOSITORY)
-    private sessions: ISessionsRepository,
-  ) {}
+  constructor(private sessions: SessionsRepository) {}
 
   async execute(sessionId: string, userId: string) {
     const session = await this.sessions.findById(sessionId);

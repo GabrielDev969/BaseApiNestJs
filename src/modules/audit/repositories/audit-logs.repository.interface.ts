@@ -6,6 +6,7 @@ export interface CreateAuditLogData {
   action: string;
   resource?: string | null;
   resourceId?: string | null;
+
   metadata?: Record<string, any> | null;
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -14,7 +15,7 @@ export interface CreateAuditLogData {
 export interface FindAuditLogsParams {
   workspaceId: string;
   userId?: string;
-  action?: string; // supports prefix match: 'user.*'
+  action?: string;
   from?: Date;
   to?: Date;
   page: number;
@@ -26,9 +27,7 @@ export interface FindAuditLogsResult {
   total: number;
 }
 
-export interface IAuditLogsRepository {
-  create(data: CreateAuditLogData): Promise<AuditLog>;
-  findMany(params: FindAuditLogsParams): Promise<FindAuditLogsResult>;
+export abstract class AuditLogsRepository {
+  abstract create(data: CreateAuditLogData): Promise<AuditLog>;
+  abstract findMany(params: FindAuditLogsParams): Promise<FindAuditLogsResult>;
 }
-
-export const AUDIT_LOGS_REPOSITORY = Symbol('IAuditLogsRepository');

@@ -1,11 +1,9 @@
 import {
   Injectable,
-  Inject,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
-import { USERS_REPOSITORY } from '../repositories/users.repository.interface';
-import type { IUsersRepository } from '../repositories/users.repository.interface';
+import { UsersRepository } from '../repositories/users.repository.interface';
 import { UserResponseDto } from '../http/dto/user-response.dto';
 
 interface UpdateUserInput {
@@ -17,10 +15,7 @@ interface UpdateUserInput {
 
 @Injectable()
 export class UpdateUserUseCase {
-  constructor(
-    @Inject(USERS_REPOSITORY)
-    private readonly users: IUsersRepository,
-  ) {}
+  constructor(private readonly users: UsersRepository) {}
 
   async execute(input: UpdateUserInput): Promise<UserResponseDto> {
     const user = await this.users.findByIdInWorkspace(

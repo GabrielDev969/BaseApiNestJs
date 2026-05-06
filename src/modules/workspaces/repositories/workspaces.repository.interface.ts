@@ -19,15 +19,13 @@ export interface CreateWorkspaceResult {
   ownerRoleId: string;
 }
 
-export interface IWorkspacesRepository {
-  createWithDefaults(
+export abstract class WorkspacesRepository {
+  abstract createWithDefaults(
     data: CreateWorkspaceWithDefaultsData,
   ): Promise<CreateWorkspaceResult>;
-  findById(id: string): Promise<Workspace | null>;
-  findBySlug(slug: string): Promise<Workspace | null>;
-  findByUserId(userId: string): Promise<Workspace[]>;
-  update(id: string, data: Partial<Workspace>): Promise<Workspace>;
-  softDelete(id: string): Promise<void>;
+  abstract findById(id: string): Promise<Workspace | null>;
+  abstract findBySlug(slug: string): Promise<Workspace | null>;
+  abstract findByUserId(userId: string): Promise<Workspace[]>;
+  abstract update(id: string, data: Partial<Workspace>): Promise<Workspace>;
+  abstract softDelete(id: string): Promise<void>;
 }
-
-export const WORKSPACES_REPOSITORY = Symbol('IWorkspacesRepository');

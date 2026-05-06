@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
-  ISessionsRepository,
+  SessionsRepository,
   CreateSessionData,
 } from './sessions.repository.interface';
 import { Session } from '../entities/session.entity';
@@ -8,8 +8,10 @@ import { PrismaService } from '@shared/database/prisma.service';
 import { Session as SessionPrisma } from '@prisma/client';
 
 @Injectable()
-export class PrismaSessionsRepository implements ISessionsRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaSessionsRepository extends SessionsRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async create(data: CreateSessionData): Promise<Session> {
     const session = await this.prisma.session.create({ data });

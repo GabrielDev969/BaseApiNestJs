@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
-  IAuditLogsRepository,
+  AuditLogsRepository,
   CreateAuditLogData,
   FindAuditLogsParams,
   FindAuditLogsResult,
@@ -10,8 +10,10 @@ import { AuditLog as PrismaAuditLog, Prisma } from '@prisma/client';
 import { PrismaService } from '@shared/database/prisma.service';
 
 @Injectable()
-export class PrismaAuditLogsRepository implements IAuditLogsRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaAuditLogsRepository extends AuditLogsRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async create(data: CreateAuditLogData): Promise<AuditLog> {
     const log = await this.prisma.auditLog.create({

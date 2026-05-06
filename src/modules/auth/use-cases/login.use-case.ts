@@ -1,6 +1,5 @@
-import { USERS_REPOSITORY } from '@modules/users/repositories/users.repository.interface';
-import type { IUsersRepository } from '@modules/users/repositories/users.repository.interface';
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { TokenService } from '../services/token.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { CreateSessionUseCase } from '@modules/sessions/use-cases/create-session.use-case';
@@ -15,7 +14,7 @@ interface LoginInput {
 @Injectable()
 export class LoginUseCase {
   constructor(
-    @Inject(USERS_REPOSITORY) private users: IUsersRepository,
+    private users: UsersRepository,
     private tokens: TokenService,
     private createSession: CreateSessionUseCase,
   ) {}
@@ -32,7 +31,8 @@ export class LoginUseCase {
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
     if (user.twoFactorEnabled) {
-      return { requires2FA: true, userId: user.id };
+      const challenge = await this.tokens.signChallengeToken(user.id);
+      return { requires2FA: true as const, challenge };
     }
 
     return this.issueTokens(user.id, input.userAgent, input.ipAddress);

@@ -1,6 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { SESSIONS_REPOSITORY } from '../repositories/sessions.repository.interface';
-import type { ISessionsRepository } from '../repositories/sessions.repository.interface';
+import { Injectable } from '@nestjs/common';
+import { SessionsRepository } from '../repositories/sessions.repository.interface';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 
 interface CreateSessionInput {
@@ -12,10 +11,7 @@ interface CreateSessionInput {
 
 @Injectable()
 export class CreateSessionUseCase {
-  constructor(
-    @Inject(SESSIONS_REPOSITORY)
-    private sessions: ISessionsRepository,
-  ) {}
+  constructor(private sessions: SessionsRepository) {}
 
   async execute(input: CreateSessionInput) {
     const refreshTokenHash = CryptoUtil.hashToken(input.refreshToken);

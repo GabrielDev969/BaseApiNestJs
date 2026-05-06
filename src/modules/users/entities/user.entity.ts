@@ -4,6 +4,8 @@ export class User {
   name: string;
   passwordHash: string | null;
   twoFactorEnabled: boolean;
+  twoFactorSecret: string | null;
+  recoveryCodes: string | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

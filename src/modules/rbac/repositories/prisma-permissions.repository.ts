@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { IPermissionsRepository } from './permissions.repository.interface';
+import { PermissionsRepository } from './permissions.repository.interface';
 import { Permission } from '../entities/permission.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { Permission as PermissionPrisma } from '@prisma/client';
 
 @Injectable()
-export class PrismaPermissionsRepository implements IPermissionsRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaPermissionsRepository extends PermissionsRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async findAll(): Promise<Permission[]> {
     const perms = await this.prisma.permission.findMany({

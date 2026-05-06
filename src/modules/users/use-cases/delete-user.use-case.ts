@@ -1,13 +1,10 @@
 import {
   Injectable,
-  Inject,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { USERS_REPOSITORY } from '../repositories/users.repository.interface';
-import type { IUsersRepository } from '../repositories/users.repository.interface';
-import { WORKSPACES_REPOSITORY } from '@modules/workspaces/repositories/workspaces.repository.interface';
-import type { IWorkspacesRepository } from '@modules/workspaces/repositories/workspaces.repository.interface';
+import { UsersRepository } from '../repositories/users.repository.interface';
+import { WorkspacesRepository } from '@modules/workspaces/repositories/workspaces.repository.interface';
 
 interface DeleteUserInput {
   id: string;
@@ -17,10 +14,8 @@ interface DeleteUserInput {
 @Injectable()
 export class DeleteUserUseCase {
   constructor(
-    @Inject(USERS_REPOSITORY)
-    private readonly users: IUsersRepository,
-    @Inject(WORKSPACES_REPOSITORY)
-    private readonly workspaces: IWorkspacesRepository,
+    private readonly users: UsersRepository,
+    private readonly workspaces: WorkspacesRepository,
   ) {}
 
   async execute(input: DeleteUserInput): Promise<void> {

@@ -4,11 +4,9 @@ import {
   ExecutionContext,
   ForbiddenException,
   BadRequestException,
-  Inject,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { WORKSPACE_MEMBERS_REPOSITORY } from '@modules/workspaces/repositories/workspace-members.repository.interface';
-import type { IWorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
+import { WorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
 
 export interface WorkspaceRequest extends Request {
   user?: { id: string };
@@ -31,10 +29,7 @@ export interface WorkspaceRequest extends Request {
 
 @Injectable()
 export class WorkspaceGuard implements CanActivate {
-  constructor(
-    @Inject(WORKSPACE_MEMBERS_REPOSITORY)
-    private members: IWorkspaceMembersRepository,
-  ) {}
+  constructor(private members: WorkspaceMembersRepository) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<WorkspaceRequest>();

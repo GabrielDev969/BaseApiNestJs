@@ -1,18 +1,14 @@
 import {
   Injectable,
-  Inject,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import type { IUsersRepository } from '../repositories/users.repository.interface';
-import { USERS_REPOSITORY } from '../repositories/users.repository.interface';
+import { UsersRepository } from '../repositories/users.repository.interface';
 
 import { UserResponseDto } from '../http/dto/user-response.dto';
 import { CryptoUtil } from '@shared/utils/crypto.util';
-import { WORKSPACE_MEMBERS_REPOSITORY } from '@modules/workspaces/repositories/workspace-members.repository.interface';
-import type { IWorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
-import { ROLES_REPOSITORY } from '@modules/rbac/repositories/roles.repository.interface';
-import type { IRolesRepository } from '@modules/rbac/repositories/roles.repository.interface';
+import { WorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
+import { RolesRepository } from '@modules/rbac/repositories/roles.repository.interface';
 
 interface CreateUserInput {
   workspaceId: string;
@@ -26,12 +22,9 @@ interface CreateUserInput {
 @Injectable()
 export class CreateUserUseCase {
   constructor(
-    @Inject(USERS_REPOSITORY)
-    private readonly users: IUsersRepository,
-    @Inject(WORKSPACE_MEMBERS_REPOSITORY)
-    private readonly members: IWorkspaceMembersRepository,
-    @Inject(ROLES_REPOSITORY)
-    private readonly roles: IRolesRepository,
+    private readonly users: UsersRepository,
+    private readonly members: WorkspaceMembersRepository,
+    private readonly roles: RolesRepository,
   ) {}
 
   async execute(input: CreateUserInput): Promise<UserResponseDto> {

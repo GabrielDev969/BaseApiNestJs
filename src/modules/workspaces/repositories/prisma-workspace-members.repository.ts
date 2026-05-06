@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
-  IWorkspaceMembersRepository,
+  WorkspaceMembersRepository,
   CreateWorkspaceMemberData,
   WorkspaceMemberWithRelations,
 } from './workspace-members.repository.interface';
@@ -10,8 +10,10 @@ import { WorkspaceMember as PrismaWorkspaceMember } from '@prisma/client';
 import { ADMIN_WORKSPACE_SLUG } from '@modules/rbac/constants/system';
 
 @Injectable()
-export class PrismaWorkspaceMembersRepository implements IWorkspaceMembersRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async create(data: CreateWorkspaceMemberData): Promise<WorkspaceMember> {
     const member = await this.prisma.workspaceMember.create({ data });

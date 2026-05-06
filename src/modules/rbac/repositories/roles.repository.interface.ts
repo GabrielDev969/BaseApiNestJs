@@ -19,21 +19,24 @@ export interface RoleWithPermissions extends Role {
   permissions: Permission[];
 }
 
-export interface IRolesRepository {
-  create(data: CreateRoleData): Promise<RoleWithPermissions>;
-  findById(id: string): Promise<RoleWithPermissions | null>;
-  findByIdInWorkspace(
+export abstract class RolesRepository {
+  abstract create(data: CreateRoleData): Promise<RoleWithPermissions>;
+  abstract findById(id: string): Promise<RoleWithPermissions | null>;
+  abstract findByIdInWorkspace(
     id: string,
     workspaceId: string,
   ): Promise<RoleWithPermissions | null>;
-  findManyByWorkspace(workspaceId: string): Promise<RoleWithPermissions[]>;
-  findByNameInWorkspace(
+  abstract findManyByWorkspace(
+    workspaceId: string,
+  ): Promise<RoleWithPermissions[]>;
+  abstract findByNameInWorkspace(
     name: string,
     workspaceId: string,
   ): Promise<Role | null>;
-  update(id: string, data: UpdateRoleData): Promise<RoleWithPermissions>;
-  delete(id: string): Promise<void>;
-  countMembersUsingRole(roleId: string): Promise<number>;
+  abstract update(
+    id: string,
+    data: UpdateRoleData,
+  ): Promise<RoleWithPermissions>;
+  abstract delete(id: string): Promise<void>;
+  abstract countMembersUsingRole(roleId: string): Promise<number>;
 }
-
-export const ROLES_REPOSITORY = Symbol('IRolesRepository');

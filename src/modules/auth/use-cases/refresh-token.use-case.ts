@@ -1,17 +1,15 @@
-import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { TokenService } from '../services/token.service';
 
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { CreateSessionUseCase } from '@modules/sessions/use-cases/create-session.use-case';
-import type { ISessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
-import { SESSIONS_REPOSITORY } from '@modules/sessions/repositories/sessions.repository.interface';
+import { SessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
 
 @Injectable()
 export class RefreshTokenUseCase {
   constructor(
     private tokens: TokenService,
-    @Inject(SESSIONS_REPOSITORY)
-    private sessions: ISessionsRepository,
+    private sessions: SessionsRepository,
     private createSession: CreateSessionUseCase,
   ) {}
 

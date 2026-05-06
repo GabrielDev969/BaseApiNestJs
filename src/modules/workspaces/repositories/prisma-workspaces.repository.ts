@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
-  IWorkspacesRepository,
+  WorkspacesRepository,
   CreateWorkspaceWithDefaultsData,
   CreateWorkspaceResult,
 } from './workspaces.repository.interface';
@@ -9,8 +9,10 @@ import { PrismaService } from '@shared/database/prisma.service';
 import { Workspace as WorkspacePrisma } from '@prisma/client';
 
 @Injectable()
-export class PrismaWorkspacesRepository implements IWorkspacesRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaWorkspacesRepository extends WorkspacesRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async createWithDefaults(
     data: CreateWorkspaceWithDefaultsData,

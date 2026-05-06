@@ -1,17 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import {
-  IUsersRepository,
+  UsersRepository,
   CreateUserData,
   FindManyByWorkspaceParams,
   FindManyResult,
+  UpdateUserData,
 } from './users.repository.interface';
 import { User } from '../entities/user.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { User as PrismaUser } from '@prisma/client';
 
 @Injectable()
-export class PrismaUsersRepository implements IUsersRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaUsersRepository extends UsersRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async create(data: CreateUserData): Promise<User> {
     const user = await this.prisma.user.create({ data });
@@ -32,7 +35,7 @@ export class PrismaUsersRepository implements IUsersRepository {
     return user ? this.toEntity(user) : null;
   }
 
-  async update(id: string, data: Partial<User>): Promise<User> {
+  async update(id: string, data: UpdateUserData): Promise<User> {
     const user = await this.prisma.user.update({ where: { id }, data });
     return this.toEntity(user);
   }
@@ -95,6 +98,8 @@ export class PrismaUsersRepository implements IUsersRepository {
       name: raw.name,
       passwordHash: raw.passwordHash,
       twoFactorEnabled: raw.twoFactorEnabled,
+      twoFactorSecret: raw.twoFactorSecret,
+      recoveryCodes: raw.recoveryCodes,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,

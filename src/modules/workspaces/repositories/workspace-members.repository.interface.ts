@@ -11,26 +11,22 @@ export interface WorkspaceMemberWithRelations extends WorkspaceMember {
     id: string;
     name: string;
     isSystem: boolean;
-    permissions: string[]; // permission keys
+    permissions: string[];
   };
 }
 
-export interface IWorkspaceMembersRepository {
-  create(data: CreateWorkspaceMemberData): Promise<WorkspaceMember>;
-  findById(id: string): Promise<WorkspaceMember | null>;
-  findByUserAndWorkspace(
+export abstract class WorkspaceMembersRepository {
+  abstract create(data: CreateWorkspaceMemberData): Promise<WorkspaceMember>;
+  abstract findById(id: string): Promise<WorkspaceMember | null>;
+  abstract findByUserAndWorkspace(
     userId: string,
     workspaceId: string,
   ): Promise<WorkspaceMemberWithRelations | null>;
-  findSuperAdminMembership(
+  abstract findSuperAdminMembership(
     userId: string,
   ): Promise<WorkspaceMemberWithRelations | null>;
-  findManyByWorkspace(workspaceId: string): Promise<WorkspaceMember[]>;
-  updateRole(id: string, roleId: string): Promise<WorkspaceMember>;
-  delete(id: string): Promise<void>;
-  countByWorkspace(workspaceId: string): Promise<number>;
+  abstract findManyByWorkspace(workspaceId: string): Promise<WorkspaceMember[]>;
+  abstract updateRole(id: string, roleId: string): Promise<WorkspaceMember>;
+  abstract delete(id: string): Promise<void>;
+  abstract countByWorkspace(workspaceId: string): Promise<number>;
 }
-
-export const WORKSPACE_MEMBERS_REPOSITORY = Symbol(
-  'IWorkspaceMembersRepository',
-);

@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import {
-  IRolesRepository,
+  RolesRepository,
   CreateRoleData,
   UpdateRoleData,
   RoleWithPermissions,
@@ -19,8 +19,10 @@ type PrismaRoleWithRelations = Prisma.RoleGetPayload<{
 }>;
 
 @Injectable()
-export class PrismaRolesRepository implements IRolesRepository {
-  constructor(private prisma: PrismaService) {}
+export class PrismaRolesRepository extends RolesRepository {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
 
   async create(data: CreateRoleData): Promise<RoleWithPermissions> {
     const perms = await this.prisma.permission.findMany({

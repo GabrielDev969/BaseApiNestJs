@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SessionsController } from './http/sessions.controller';
-import { SESSIONS_REPOSITORY } from './repositories/sessions.repository.interface';
+import { SessionsRepository } from './repositories/sessions.repository.interface';
 import { PrismaSessionsRepository } from './repositories/prisma-sessions.repository';
 import { CreateSessionUseCase } from './use-cases/create-session.use-case';
 import { ListSessionsUseCase } from './use-cases/list-sessions.use-case';
@@ -11,7 +11,7 @@ import { RevokeAllSessionsUseCase } from './use-cases/revoke-all-sessions.use-ca
   controllers: [SessionsController],
   providers: [
     {
-      provide: SESSIONS_REPOSITORY,
+      provide: SessionsRepository,
       useClass: PrismaSessionsRepository,
     },
     CreateSessionUseCase,
@@ -19,6 +19,6 @@ import { RevokeAllSessionsUseCase } from './use-cases/revoke-all-sessions.use-ca
     RevokeSessionUseCase,
     RevokeAllSessionsUseCase,
   ],
-  exports: [SESSIONS_REPOSITORY, CreateSessionUseCase],
+  exports: [SessionsRepository, CreateSessionUseCase],
 })
 export class SessionsModule {}

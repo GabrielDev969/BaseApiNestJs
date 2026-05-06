@@ -1,10 +1,8 @@
 import { Permission } from '../entities/permission.entity';
 
-export interface IPermissionsRepository {
-  findAll(): Promise<Permission[]>;
-  findByKey(key: string): Promise<Permission | null>;
-  findManyByKeys(keys: string[]): Promise<Permission[]>;
-  findByCategory(category: string): Promise<Permission[]>;
+export abstract class PermissionsRepository {
+  abstract findAll(): Promise<Permission[]>;
+  abstract findByKey(key: string): Promise<Permission | null>;
+  abstract findManyByKeys(keys: string[]): Promise<Permission[]>;
+  abstract findByCategory(category: string): Promise<Permission[]>;
 }
-
-export const PERMISSIONS_REPOSITORY = Symbol('IPermissionsRepository');

@@ -1,6 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { AUDIT_LOGS_REPOSITORY } from '../repositories/audit-logs.repository.interface';
-import type { IAuditLogsRepository } from '../repositories/audit-logs.repository.interface';
+import { Injectable } from '@nestjs/common';
+import { AuditLogsRepository } from '../repositories/audit-logs.repository.interface';
 import { PaginatedResponseDto } from '@shared/dto/paginated-response.dto';
 import { AuditLogResponseDto } from '../http/dto/audit-log-response.dto';
 
@@ -16,10 +15,7 @@ interface ListAuditLogsInput {
 
 @Injectable()
 export class ListAuditLogsUseCase {
-  constructor(
-    @Inject(AUDIT_LOGS_REPOSITORY)
-    private readonly logs: IAuditLogsRepository,
-  ) {}
+  constructor(private readonly logs: AuditLogsRepository) {}
 
   async execute(
     input: ListAuditLogsInput,
