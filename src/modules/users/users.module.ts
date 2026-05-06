@@ -1,9 +1,26 @@
 import { Module } from '@nestjs/common';
 import { USERS_REPOSITORY } from './repositories/users.repository.interface';
 import { PrismaUsersRepository } from './repositories/prisma-users.repository';
+import { ListUsersUseCase } from './use-cases/list-users.use-case';
+import { GetUserByIdUseCase } from './use-cases/get-user-by-id.use-case';
+import { CreateUserUseCase } from './use-cases/create-user.use-case';
+import { UpdateUserUseCase } from './use-cases/update-user.use-case';
+import { DeleteUserUseCase } from './use-cases/delete-user.use-case';
+import { UsersController } from './http/users.controller';
+import { WorkspacesModule } from '../workspaces/workspaces.module';
+import { RbacModule } from '@modules/rbac/rbac.module';
 
 @Module({
-  providers: [{ provide: USERS_REPOSITORY, useClass: PrismaUsersRepository }],
+  imports: [WorkspacesModule, RbacModule],
+  controllers: [UsersController],
+  providers: [
+    { provide: USERS_REPOSITORY, useClass: PrismaUsersRepository },
+    ListUsersUseCase,
+    GetUserByIdUseCase,
+    CreateUserUseCase,
+    UpdateUserUseCase,
+    DeleteUserUseCase,
+  ],
   exports: [USERS_REPOSITORY],
 })
 export class UsersModule {}

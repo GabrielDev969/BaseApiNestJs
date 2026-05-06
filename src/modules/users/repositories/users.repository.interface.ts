@@ -6,11 +6,32 @@ export interface CreateUserData {
   passwordHash?: string;
 }
 
+export interface UpdateUserData {
+  email?: string;
+  name?: string;
+}
+
+export interface FindManyByWorkspaceParams {
+  workspaceId: string;
+  page: number;
+  limit: number;
+  search?: string;
+}
+
+export interface FindManyResult {
+  items: User[];
+  total: number;
+}
+
 export interface IUsersRepository {
   create(data: CreateUserData): Promise<User>;
   findById(id: string): Promise<User | null>;
+  findByIdInWorkspace(id: string, workspaceId: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  update(id: string, data: Partial<User>): Promise<User>;
+  findManyByWorkspace(
+    params: FindManyByWorkspaceParams,
+  ): Promise<FindManyResult>;
+  update(id: string, data: UpdateUserData): Promise<User>;
   softDelete(id: string): Promise<void>;
 }
 

@@ -1,0 +1,88 @@
+import { Injectable } from '@nestjs/common';
+import {
+  IWorkspaceMembersRepository,
+  CreateWorkspaceMemberData,
+  WorkspaceMemberWithRelations,
+} from './workspace-members.repository.interface';
+import { WorkspaceMember } from '../entities/workspace-member.entity';
+import { PrismaService } from '@shared/database/prisma.service';
+import { WorkspaceMember as PrismaWorkspaceMember } from '@prisma/client';
+
+@Injectable()
+export class PrismaWorkspaceMembersRepository implements IWorkspaceMembersRepository {
+  constructor(private prisma: PrismaService) {}
+
+  async create(data: CreateWorkspaceMemberData): Promise<WorkspaceMember> {
+    const member = await this.prisma.workspaceMember.create({ data });
+    return this.toEntity(member);
+  }
+
+  async findById(id: string): Promise<WorkspaceMember | null> {
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: { id },
+    });
+    return member ? this.toEntity(member) : null;
+  }
+
+  async findByUserAndWorkspace(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMemberWithRelations | null> {
+    const member = await this.prisma.workspaceMember.findUnique({
+      where: { userId_workspaceId: { userId, workspaceId } },
+      include: {
+        role: {
+          include: {
+            permissions: { include: { permission: true } },
+          },
+        },
+      },
+    });
+
+    if (!member) return null;
+
+    return {
+      ...this.toEntity(member),
+      role: {
+        id: member.role.id,
+        name: member.role.name,
+        isSystem: member.role.isSystem,
+        permissions: member.role.permissions.map((rp) => rp.permission.key),
+      },
+    };
+  }
+
+  async findManyByWorkspace(workspaceId: string): Promise<WorkspaceMember[]> {
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId },
+      orderBy: { joinedAt: 'asc' },
+    });
+    return members.map((m) => this.toEntity(m));
+  }
+
+  async updateRole(id: string, roleId: string): Promise<WorkspaceMember> {
+    const member = await this.prisma.workspaceMember.update({
+      where: { id },
+      data: { roleId },
+    });
+    return this.toEntity(member);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.workspaceMember.delete({ where: { id } });
+  }
+
+  async countByWorkspace(workspaceId: string): Promise<number> {
+    return this.prisma.workspaceMember.count({ where: { workspaceId } });
+  }
+
+  private toEntity(raw: PrismaWorkspaceMember): WorkspaceMember {
+    return {
+      id: raw.id,
+      userId: raw.userId,
+      workspaceId: raw.workspaceId,
+      roleId: raw.roleId,
+      joinedAt: raw.joinedAt,
+    };
+  }
+}

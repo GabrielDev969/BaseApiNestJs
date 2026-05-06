@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { IUsersRepository, CreateUserData } from './users.repository.interface';
+import {
+  IUsersRepository,
+  CreateUserData,
+  FindManyByWorkspaceParams,
+  FindManyResult,
+} from './users.repository.interface';
 import { User } from '../entities/user.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { User as PrismaUser } from '@prisma/client';
@@ -37,6 +42,50 @@ export class PrismaUsersRepository implements IUsersRepository {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async findByIdInWorkspace(
+    id: string,
+    workspaceId: string,
+  ): Promise<User | null> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        memberships: { some: { workspaceId } },
+      },
+    });
+    return user ? this.toEntity(user) : null;
+  }
+
+  async findManyByWorkspace(
+    params: FindManyByWorkspaceParams,
+  ): Promise<FindManyResult> {
+    const where = {
+      deletedAt: null,
+      memberships: { some: { workspaceId: params.workspaceId } },
+      ...(params.search && {
+        OR: [
+          { name: { contains: params.search, mode: 'insensitive' as const } },
+          { email: { contains: params.search, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip: (params.page - 1) * params.limit,
+        take: params.limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      items: items.map((u) => this.toEntity(u)),
+      total,
+    };
   }
 
   private toEntity(raw: PrismaUser): User {

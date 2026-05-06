@@ -1,0 +1,179 @@
+import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  IRolesRepository,
+  CreateRoleData,
+  UpdateRoleData,
+  RoleWithPermissions,
+} from './roles.repository.interface';
+import { Role } from '../entities/role.entity';
+import { Permission } from '../entities/permission.entity';
+import { PrismaService } from '@shared/database/prisma.service';
+import {
+  Role as PrismaRole,
+  Permission as PrismaPermission,
+  Prisma,
+} from '@prisma/client';
+
+type PrismaRoleWithRelations = Prisma.RoleGetPayload<{
+  include: { permissions: { include: { permission: true } } };
+}>;
+
+@Injectable()
+export class PrismaRolesRepository implements IRolesRepository {
+  constructor(private prisma: PrismaService) {}
+
+  async create(data: CreateRoleData): Promise<RoleWithPermissions> {
+    const perms = await this.prisma.permission.findMany({
+      where: { key: { in: data.permissionKeys } },
+    });
+
+    if (perms.length !== data.permissionKeys.length) {
+      const missing = data.permissionKeys.filter(
+        (k) => !perms.some((p) => p.key === k),
+      );
+      throw new BadRequestException(
+        `Unknown permissions: ${missing.join(', ')}`,
+      );
+    }
+
+    const role = await this.prisma.role.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        workspaceId: data.workspaceId,
+        isSystem: data.isSystem ?? false,
+        permissions: {
+          create: perms.map((p) => ({ permissionId: p.id })),
+        },
+      },
+      include: { permissions: { include: { permission: true } } },
+    });
+
+    return this.toRoleWithPermissions(role);
+  }
+
+  async findById(id: string): Promise<RoleWithPermissions | null> {
+    const role = await this.prisma.role.findUnique({
+      where: { id },
+      include: { permissions: { include: { permission: true } } },
+    });
+    return role ? this.toRoleWithPermissions(role) : null;
+  }
+
+  async findByIdInWorkspace(
+    id: string,
+    workspaceId: string,
+  ): Promise<RoleWithPermissions | null> {
+    const role = await this.prisma.role.findFirst({
+      where: { id, workspaceId },
+      include: { permissions: { include: { permission: true } } },
+    });
+    return role ? this.toRoleWithPermissions(role) : null;
+  }
+
+  async findManyByWorkspace(
+    workspaceId: string,
+  ): Promise<RoleWithPermissions[]> {
+    const roles = await this.prisma.role.findMany({
+      where: { workspaceId },
+      include: { permissions: { include: { permission: true } } },
+      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+    });
+    return roles.map((r) => this.toRoleWithPermissions(r));
+  }
+
+  async findByNameInWorkspace(
+    name: string,
+    workspaceId: string,
+  ): Promise<Role | null> {
+    const role = await this.prisma.role.findUnique({
+      where: { workspaceId_name: { workspaceId, name } },
+    });
+    return role ? this.toRole(role) : null;
+  }
+
+  async update(id: string, data: UpdateRoleData): Promise<RoleWithPermissions> {
+    return this.prisma.$transaction(async (tx) => {
+      // Update fields
+      if (data.name || data.description !== undefined) {
+        await tx.role.update({
+          where: { id },
+          data: {
+            ...(data.name && { name: data.name }),
+            ...(data.description !== undefined && {
+              description: data.description,
+            }),
+          },
+        });
+      }
+
+      // Replace permissions atomically if provided
+      if (data.permissionKeys) {
+        const perms = await tx.permission.findMany({
+          where: { key: { in: data.permissionKeys } },
+        });
+
+        if (perms.length !== data.permissionKeys.length) {
+          const missing = data.permissionKeys.filter(
+            (k) => !perms.some((p) => p.key === k),
+          );
+          throw new BadRequestException(
+            `Unknown permissions: ${missing.join(', ')}`,
+          );
+        }
+
+        await tx.rolePermission.deleteMany({ where: { roleId: id } });
+        await tx.rolePermission.createMany({
+          data: perms.map((p) => ({ roleId: id, permissionId: p.id })),
+        });
+      }
+
+      const updated = await tx.role.findUniqueOrThrow({
+        where: { id },
+        include: { permissions: { include: { permission: true } } },
+      });
+
+      return this.toRoleWithPermissions(updated);
+    });
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.role.delete({ where: { id } });
+  }
+
+  async countMembersUsingRole(roleId: string): Promise<number> {
+    return this.prisma.workspaceMember.count({ where: { roleId } });
+  }
+
+  private toRole(raw: PrismaRole): Role {
+    return {
+      id: raw.id,
+      name: raw.name,
+      description: raw.description,
+      workspaceId: raw.workspaceId,
+      isSystem: raw.isSystem,
+      createdAt: raw.createdAt,
+      updatedAt: raw.updatedAt,
+    };
+  }
+
+  private toPermission(raw: PrismaPermission): Permission {
+    return {
+      id: raw.id,
+      key: raw.key,
+      description: raw.description,
+      category: raw.category,
+    };
+  }
+
+  private toRoleWithPermissions(
+    raw: PrismaRoleWithRelations,
+  ): RoleWithPermissions {
+    return {
+      ...this.toRole(raw),
+      permissions: raw.permissions.map((rp) =>
+        this.toPermission(rp.permission),
+      ),
+    };
+  }
+}
