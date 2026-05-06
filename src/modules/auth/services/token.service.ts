@@ -17,7 +17,7 @@ export class TokenService {
   signAccessToken(payload: AccessTokenPayload): Promise<string> {
     return this.jwt.signAsync(payload, {
       secret: env.JWT_ACCESS_SECRET,
-      expiresIn: env.JWT_REFRESH_EXPIRES_IN,
+      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
     });
   }
 
@@ -25,7 +25,7 @@ export class TokenService {
     return this.jwt.signAsync(
       { sub: userId },
       {
-        secret: env.JWT_ACCESS_SECRET,
+        secret: env.JWT_REFRESH_SECRET,
         expiresIn: env.JWT_REFRESH_EXPIRES_IN,
       },
     );
@@ -33,7 +33,7 @@ export class TokenService {
 
   verifyRefreshToken(token: string) {
     return this.jwt.verifyAsync(token, {
-      secret: env.JWT_ACCESS_SECRET,
+      secret: env.JWT_REFRESH_SECRET,
     });
   }
 }

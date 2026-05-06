@@ -37,7 +37,10 @@ export class RefreshTokenUseCase {
 
     await this.sessions.revoke(session.id);
 
-    const newAccess = await this.tokens.signAccessToken({ sub: payload.sub });
+    const newAccess = await this.tokens.signAccessToken({
+      sub: payload.sub,
+      id: payload.sub,
+    });
     const newRefresh = await this.tokens.signRefreshToken(payload.sub);
 
     await this.createSession.execute({

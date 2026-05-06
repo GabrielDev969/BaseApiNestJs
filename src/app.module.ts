@@ -8,6 +8,7 @@ import { Request, Response } from 'express';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
+import { AuditModule } from '@modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
       },
     ]),
     PrismaModule,
+    AuditModule,
   ],
   controllers: [],
   providers: [

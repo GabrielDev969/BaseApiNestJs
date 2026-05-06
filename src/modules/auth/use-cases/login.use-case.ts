@@ -39,7 +39,10 @@ export class LoginUseCase {
   }
 
   async issueTokens(userId: string, userAgent?: string, ipAddress?: string) {
-    const accessToken = await this.tokens.signAccessToken({ sub: userId });
+    const accessToken = await this.tokens.signAccessToken({
+      sub: userId,
+      id: userId,
+    });
     const refreshToken = await this.tokens.signRefreshToken(userId);
 
     await this.createSession.execute({
