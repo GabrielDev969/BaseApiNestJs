@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Req,
   HttpCode,
@@ -15,6 +16,7 @@ import {
 import { RegisterUseCase } from '../use-cases/register.use-case';
 import { LoginUseCase } from '../use-cases/login.use-case';
 import { RefreshTokenUseCase } from '../use-cases/refresh-token.use-case';
+import { GetMeUseCase } from '../use-cases/get-me.use-case';
 import { SetupTwoFactorUseCase } from '../use-cases/setup-2fa.use-case';
 import { EnableTwoFactorUseCase } from '../use-cases/enable-2fa.use-case';
 import { DisableTwoFactorUseCase } from '../use-cases/disable-2fa.use-case';
@@ -22,6 +24,7 @@ import { VerifyTwoFactorUseCase } from '../use-cases/verify-2fa.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { MeResponseDto } from './dto/me-response.dto';
 import { EnableTwoFactorDto } from './dto/enable-2fa.dto';
 import { DisableTwoFactorDto } from './dto/disable-2fa.dto';
 import { VerifyTwoFactorDto } from './dto/verify-2fa.dto';
@@ -37,6 +40,7 @@ export class AuthController {
     private register: RegisterUseCase,
     private login: LoginUseCase,
     private refresh: RefreshTokenUseCase,
+    private getMe: GetMeUseCase,
     private setup2fa: SetupTwoFactorUseCase,
     private enable2fa: EnableTwoFactorUseCase,
     private disable2fa: DisableTwoFactorUseCase,
@@ -78,6 +82,14 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   refreshEndpoint(@Body() dto: RefreshDto) {
     return this.refresh.execute(dto.refreshToken);
+  }
+
+  @ApiBearerAuth()
+  @Get('me')
+  @ApiOperation({ summary: 'Current user profile, workspaces and admin flag' })
+  @ApiResponse({ status: 200, type: MeResponseDto })
+  meEndpoint(@CurrentUser() user: AccessTokenPayload) {
+    return this.getMe.execute(user.id);
   }
 
   @ApiBearerAuth()

@@ -10,6 +10,7 @@ import { TwoFactorService } from './services/two-factor.service';
 import { RegisterUseCase } from './use-cases/register.use-case';
 import { LoginUseCase } from './use-cases/login.use-case';
 import { RefreshTokenUseCase } from './use-cases/refresh-token.use-case';
+import { GetMeUseCase } from './use-cases/get-me.use-case';
 import { SetupTwoFactorUseCase } from './use-cases/setup-2fa.use-case';
 import { EnableTwoFactorUseCase } from './use-cases/enable-2fa.use-case';
 import { DisableTwoFactorUseCase } from './use-cases/disable-2fa.use-case';
@@ -35,6 +36,7 @@ import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
     RegisterUseCase,
     LoginUseCase,
     RefreshTokenUseCase,
+    GetMeUseCase,
     SetupTwoFactorUseCase,
     EnableTwoFactorUseCase,
     DisableTwoFactorUseCase,
