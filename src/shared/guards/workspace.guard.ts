@@ -50,10 +50,10 @@ export class WorkspaceGuard implements CanActivate {
 
     if (!workspaceId) throw new BadRequestException('Workspace not specified');
 
-    const member = await this.members.findByUserAndWorkspace(
-      user.id,
-      workspaceId,
-    );
+    const member =
+      (await this.members.findByUserAndWorkspace(user.id, workspaceId)) ??
+      (await this.members.findSuperAdminMembership(user.id));
+
     if (!member)
       throw new ForbiddenException('You are not a member of this workspace');
 

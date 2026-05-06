@@ -7,6 +7,7 @@ import {
 import { WorkspaceMember } from '../entities/workspace-member.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { WorkspaceMember as PrismaWorkspaceMember } from '@prisma/client';
+import { ADMIN_WORKSPACE_SLUG } from '@modules/rbac/constants/system';
 
 @Injectable()
 export class PrismaWorkspaceMembersRepository implements IWorkspaceMembersRepository {
@@ -50,6 +51,17 @@ export class PrismaWorkspaceMembersRepository implements IWorkspaceMembersReposi
         permissions: member.role.permissions.map((rp) => rp.permission.key),
       },
     };
+  }
+
+  async findSuperAdminMembership(
+    userId: string,
+  ): Promise<WorkspaceMemberWithRelations | null> {
+    const adminWorkspace = await this.prisma.workspace.findUnique({
+      where: { slug: ADMIN_WORKSPACE_SLUG },
+      select: { id: true },
+    });
+    if (!adminWorkspace) return null;
+    return this.findByUserAndWorkspace(userId, adminWorkspace.id);
   }
 
   async findManyByWorkspace(workspaceId: string): Promise<WorkspaceMember[]> {

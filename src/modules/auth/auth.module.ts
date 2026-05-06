@@ -10,6 +10,7 @@ import { RegisterUseCase } from './use-cases/register.use-case';
 import { LoginUseCase } from './use-cases/login.use-case';
 import { RefreshTokenUseCase } from './use-cases/refresh-token.use-case';
 import { env } from 'src/config/env.config';
+import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { env } from 'src/config/env.config';
     }),
     UsersModule,
     SessionsModule,
+    WorkspacesModule,
   ],
   controllers: [AuthController],
   providers: [

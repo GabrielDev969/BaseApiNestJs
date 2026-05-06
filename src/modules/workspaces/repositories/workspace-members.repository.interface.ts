@@ -22,6 +22,9 @@ export interface IWorkspaceMembersRepository {
     userId: string,
     workspaceId: string,
   ): Promise<WorkspaceMemberWithRelations | null>;
+  findSuperAdminMembership(
+    userId: string,
+  ): Promise<WorkspaceMemberWithRelations | null>;
   findManyByWorkspace(workspaceId: string): Promise<WorkspaceMember[]>;
   updateRole(id: string, roleId: string): Promise<WorkspaceMember>;
   delete(id: string): Promise<void>;

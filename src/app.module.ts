@@ -9,6 +9,11 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
 import { AuditModule } from '@modules/audit/audit.module';
+import { AuthModule } from '@modules/auth/auth.module';
+import { UsersModule } from '@modules/users/users.module';
+import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { RbacModule } from '@modules/rbac/rbac.module';
+import { SessionsModule } from '@modules/sessions/sessions.module';
 
 @Module({
   imports: [
@@ -41,6 +46,11 @@ import { AuditModule } from '@modules/audit/audit.module';
       },
     ]),
     PrismaModule,
+    AuthModule,
+    UsersModule,
+    WorkspacesModule,
+    RbacModule,
+    SessionsModule,
     AuditModule,
   ],
   controllers: [],
