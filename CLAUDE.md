@@ -70,6 +70,7 @@ constructor(private users: UsersRepository) {}   // 1 import, sem @Inject, sem S
 
 ## Regras inegociáveis
 
+0. **Tudo em inglês**. Identificadores, comentários, mensagens de erro, descriptions de Swagger, mensagens de validação, console.log, seed data — **tudo**. Nada de português no código, mesmo que o time fale português. A única exceção é a comunicação humana (chat, commits podem ser PT) — código não.
 1. **Sem `any`**. Tipos explícitos sempre. Use `unknown` + narrow se preciso. Exceção justificada: campos `Record<string, any>` que cruzam a fronteira do Prisma JSON (ver `audit-logs.repository.interface.ts` — comente com `eslint-disable-next-line`).
 2. **Repos via abstract class** (regra acima).
 3. **Use cases não falam HTTP**. Lançam `BadRequestException`, `UnauthorizedException`, etc., mas não conhecem `Request`/`Response`.
@@ -205,6 +206,7 @@ Shared code lives in `src/shared/`. Path aliases: `@modules/*`, `@shared/*`, `@c
 
 ## Hard rules
 
+0. **Everything in English**. Identifiers, comments, error messages, Swagger descriptions, validation messages, console logs, seed data — **everything**. No Portuguese in code, even though the team speaks Portuguese. The only exception is human communication (chat, commit messages may be PT) — code is not.
 1. **No `any`**. Use `unknown` and narrow. Exception: Prisma JSON fields (e.g. `Record<string, any>` with eslint-disable comment).
 2. Repos via abstract class.
 3. Use cases never know `Request`/`Response`. They throw `*Exception`.

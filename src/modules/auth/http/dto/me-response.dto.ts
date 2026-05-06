@@ -27,7 +27,7 @@ export class MeResponseDto {
   @ApiProperty()
   twoFactorEnabled: boolean;
 
-  @ApiProperty({ description: 'True se membro do workspace __admin__' })
+  @ApiProperty({ description: 'True if member of the __admin__ workspace' })
   isSuperAdmin: boolean;
 
   @ApiProperty({ type: [MeWorkspaceDto] })

@@ -19,54 +19,54 @@ const prisma = new PrismaClient({ adapter });
 
 const PERMISSIONS = [
   // User
-  { key: 'user:read', category: 'user', description: 'Visualizar usuários' },
-  { key: 'user:create', category: 'user', description: 'Criar usuários' },
-  { key: 'user:update', category: 'user', description: 'Atualizar usuários' },
-  { key: 'user:delete', category: 'user', description: 'Deletar usuários' },
+  { key: 'user:read', category: 'user', description: 'View users' },
+  { key: 'user:create', category: 'user', description: 'Create users' },
+  { key: 'user:update', category: 'user', description: 'Update users' },
+  { key: 'user:delete', category: 'user', description: 'Delete users' },
 
   // Workspace
   {
     key: 'workspace:read',
     category: 'workspace',
-    description: 'Ver workspace',
+    description: 'View workspace',
   },
   {
     key: 'workspace:update',
     category: 'workspace',
-    description: 'Editar workspace',
+    description: 'Update workspace',
   },
   {
     key: 'workspace:delete',
     category: 'workspace',
-    description: 'Deletar workspace',
+    description: 'Delete workspace',
   },
   {
     key: 'workspace:invite',
     category: 'workspace',
-    description: 'Convidar membros',
+    description: 'Invite members',
   },
   {
     key: 'workspace:remove_member',
     category: 'workspace',
-    description: 'Remover membros',
+    description: 'Remove members',
   },
 
   // RBAC
-  { key: 'role:read', category: 'rbac', description: 'Ver roles' },
-  { key: 'role:create', category: 'rbac', description: 'Criar roles' },
-  { key: 'role:update', category: 'rbac', description: 'Editar roles' },
-  { key: 'role:delete', category: 'rbac', description: 'Deletar roles' },
+  { key: 'role:read', category: 'rbac', description: 'View roles' },
+  { key: 'role:create', category: 'rbac', description: 'Create roles' },
+  { key: 'role:update', category: 'rbac', description: 'Update roles' },
+  { key: 'role:delete', category: 'rbac', description: 'Delete roles' },
   {
     key: 'role:assign',
     category: 'rbac',
-    description: 'Atribuir roles a membros',
+    description: 'Assign roles to members',
   },
 
   // Audit
   {
     key: 'audit:read',
     category: 'audit',
-    description: 'Ver logs de auditoria',
+    description: 'View audit logs',
   },
 ];
 
@@ -83,7 +83,7 @@ function readSuperAdminEnv(): SuperAdminEnv {
 
   if (!email || !password || !name) {
     throw new Error(
-      'SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD e SUPER_ADMIN_NAME devem ser definidos no .env',
+      'SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD and SUPER_ADMIN_NAME must be defined in .env',
     );
   }
 
@@ -139,10 +139,10 @@ async function seedSuperAdmin(allPermissionKeys: string[]): Promise<void> {
     where: {
       workspaceId_name: { workspaceId: workspace.id, name: SUPER_ADMIN_ROLE },
     },
-    update: { description: 'Acesso global a todos os workspaces' },
+    update: { description: 'Global access across all workspaces' },
     create: {
       name: SUPER_ADMIN_ROLE,
-      description: 'Acesso global a todos os workspaces',
+      description: 'Global access across all workspaces',
       workspaceId: workspace.id,
       isSystem: true,
     },
@@ -161,7 +161,7 @@ async function seedSuperAdmin(allPermissionKeys: string[]): Promise<void> {
     create: { userId: user.id, workspaceId: workspace.id, roleId: role.id },
   });
 
-  console.log(`✅ Super admin "${env.email}" provisionado`);
+  console.log(`✅ Super admin "${env.email}" provisioned`);
 }
 
 async function main() {
@@ -172,7 +172,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('Erro ao executar o seed: ', e);
+    console.error('Failed to run seed:', e);
     process.exit(1);
   })
   .finally(async () => {
