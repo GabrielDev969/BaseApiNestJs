@@ -127,6 +127,35 @@ constructor(private users: UsersRepository) {}   // 1 import, sem @Inject, sem S
 - Fluxo de login: senha OK + `twoFactorEnabled` → emite challenge JWT 5min → `/auth/2fa/verify` aceita TOTP **ou** recovery code
 - Disable exige senha + TOTP atual (recovery não disable — força usuário comprometido a saber senha)
 
+## Testing
+
+Stack: Jest 30 + Supertest 7 + @nestjs/testing 11 + @testcontainers/postgresql 11 (Postgres real, isolado por job).
+
+**3 padrões canônicos** (cada um tem um exemplo no repo, copie e cole):
+
+| Tipo | Onde | Exemplo | Quando usar |
+|------|------|---------|------------|
+| Service puro | `src/.../*.spec.ts` | `two-factor.service.spec.ts` | Lógica sem deps externas |
+| Use case com mocks | `src/.../*.spec.ts` | `register.use-case.spec.ts` | Use cases — mocka repos via `jest.Mocked<UsersRepository>` |
+| E2E real | `test/*.e2e-spec.ts` | `auth.e2e-spec.ts` | Fluxo completo HTTP→DB com testcontainers |
+
+**Regras:**
+- Repos não são mockados em e2e — banco real via testcontainers, migrations via `prisma migrate deploy`.
+- Use cases unitários: mocke o repo inteiro como `jest.Mocked<XRepository>` (a classe abstrata serve de tipo).
+- E2E: import dos helpers no top, mas `createTestApp` via `require()` lazy dentro do `beforeAll` para que o container já esteja de pé antes do AppModule ler `DATABASE_URL`.
+- Reset entre testes via `resetDatabase()` (TRUNCATE com CASCADE), não `DROP/CREATE`.
+- Stub do `nanoid` em `test/stubs/nanoid.ts` (ESM-only). Outras libs ESM resolvem com `customExportConditions: ["node"]` no jest-e2e.
+
+**Comandos:**
+```bash
+pnpm test                # unit (rápido, sem Docker)
+pnpm test:watch          # unit em watch
+pnpm test:cov            # unit + coverage
+pnpm test:e2e            # e2e (precisa Docker)
+```
+
+**Antes de produção:** rode `pnpm test && pnpm test:e2e` no CI.
+
 ## Comandos
 
 ```bash

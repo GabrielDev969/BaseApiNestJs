@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { generateSecret, generateURI, verifySync } from 'otplib';
 import * as crypto from 'crypto';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { env } from 'src/config/env.config';
+import * as totp from './totp.util';
 
 const ISSUER = 'Workspace API';
 const RECOVERY_CODE_COUNT = 10;
@@ -10,15 +10,19 @@ const RECOVERY_CODE_COUNT = 10;
 @Injectable()
 export class TwoFactorService {
   generateSecret(): string {
-    return generateSecret();
+    return totp.generateSecret();
   }
 
   buildOtpAuthUrl(email: string, secret: string): string {
-    return generateURI({ issuer: ISSUER, label: email, secret });
+    return totp.buildOtpAuthUrl(ISSUER, email, secret);
   }
 
   verifyToken(secret: string, token: string): boolean {
-    return verifySync({ secret, token }).valid;
+    return totp.verifyToken(secret, token);
+  }
+
+  generateToken(secret: string): string {
+    return totp.generateToken(secret);
   }
 
   encryptSecret(secret: string): string {
