@@ -28,11 +28,8 @@ const envSchema = z
 
     ENCRYPTION_KEY: z
       .string()
-      .length(64, 'ENCRYPTION_KEY deve ter 64 caracteres (32 bytes em hex)')
-      .regex(
-        /^[0-9a-fA-F]+$/,
-        'ENCRYPTION_KEY deve estar em formato hexadecimal',
-      ),
+      .length(64, 'ENCRYPTION_KEY must be 64 characters (32 bytes in hex)')
+      .regex(/^[0-9a-fA-F]+$/, 'ENCRYPTION_KEY must be in hexadecimal format'),
 
     GOOGLE_CLIENT_ID: z.string().optional(),
     GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -53,7 +50,7 @@ const envSchema = z
     },
     {
       message:
-        'GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET devem ser fornecidos juntos',
+        'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be provided together',
     },
   )
   .refine(
@@ -64,7 +61,7 @@ const envSchema = z
     },
     {
       message:
-        'GITHUB_CLIENT_ID e GITHUB_CLIENT_SECRET devem ser fornecidos juntos',
+        'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must be provided together',
     },
   );
 

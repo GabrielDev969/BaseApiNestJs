@@ -69,7 +69,6 @@ export class PrismaAuditLogsRepository extends AuditLogsRepository {
       action: raw.action,
       resource: raw.resource,
       resourceId: raw.resourceId,
-      // O metadata vem do banco como JSON, então passamos ele diretamente
       metadata: raw.metadata as Record<string, unknown> | null,
       ipAddress: raw.ipAddress,
       userAgent: raw.userAgent,
