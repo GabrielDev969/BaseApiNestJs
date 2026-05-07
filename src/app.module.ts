@@ -14,6 +14,7 @@ import { UsersModule } from '@modules/users/users.module';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 import { RbacModule } from '@modules/rbac/rbac.module';
 import { SessionsModule } from '@modules/sessions/sessions.module';
+import { InvitationsModule } from '@modules/invitations/invitations.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SessionsModule } from '@modules/sessions/sessions.module';
     WorkspacesModule,
     RbacModule,
     SessionsModule,
+    InvitationsModule,
     AuditModule,
   ],
   controllers: [],
