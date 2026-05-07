@@ -28,7 +28,7 @@ async function bootstrap() {
     }),
   );
 
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', { exclude: ['health', 'health/ready'] });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   if (env.NODE_ENV !== 'production') {
