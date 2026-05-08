@@ -30,6 +30,7 @@ import { DisableTwoFactorDto } from './dto/disable-2fa.dto';
 import { VerifyTwoFactorDto } from './dto/verify-2fa.dto';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
+import { RateLimit } from '@shared/decorators/rate-limits';
 import type { AccessTokenPayload } from '../services/token.service';
 import type { Request } from 'express';
 
@@ -49,6 +50,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
+  @RateLimit('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
@@ -59,6 +61,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @RateLimit('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate user' })
   @ApiResponse({
@@ -76,6 +79,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @RateLimit('refreshToken')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token' })
   @ApiResponse({ status: 200, description: 'New tokens issued' })
@@ -103,6 +107,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @Post('2fa/enable')
+  @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Activate 2FA after verifying first TOTP code' })
   @ApiResponse({
@@ -119,6 +124,7 @@ export class AuthController {
 
   @ApiBearerAuth()
   @Post('2fa/disable')
+  @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Disable 2FA (requires password and current TOTP)' })
   @ApiResponse({ status: 204, description: '2FA disabled' })
@@ -132,6 +138,7 @@ export class AuthController {
 
   @Public()
   @Post('2fa/verify')
+  @RateLimit('twoFactorVerify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete login by verifying 2FA challenge' })
   @ApiResponse({ status: 200, description: 'Tokens issued' })

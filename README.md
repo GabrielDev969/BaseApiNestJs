@@ -208,6 +208,43 @@ The `AuditInterceptor` is global — endpoints decorated with `@Audit({ action, 
 | `GET` | `/health` | Liveness — always 200 if process is up |
 | `GET` | `/health/ready` | Readiness — pings the database, 503 if down |
 
+## Rate limiting
+
+Throttling is enforced globally by `ThrottlerGuard` (registered in `app.module.ts`). The default throttler reads `THROTTLE_TTL` (seconds) and `THROTTLE_LIMIT` from env — by default **100 requests per 60 seconds**, tracked per-IP.
+
+Sensitive endpoints override the default with tighter limits via `@RateLimit('<key>')` (`src/shared/decorators/rate-limits.ts`):
+
+| Endpoint | Limit | Window | Reason |
+|---|---|---|---|
+| `POST /auth/register` | 5 | 15 min | abuse / signup spam |
+| `POST /auth/login` | 10 | 1 min | password brute-force |
+| `POST /auth/refresh` | 30 | 1 min | legitimate clients refresh frequently |
+| `POST /auth/2fa/verify` | 10 | 1 min | TOTP / recovery code brute-force |
+| `POST /auth/2fa/enable` | 5 | 15 min | sensitive mutation |
+| `POST /auth/2fa/disable` | 5 | 15 min | sensitive mutation |
+| `GET /auth/oauth/:provider/login` | 20 | 1 min | flow start |
+| `POST /auth/oauth/:provider/link` | 20 | 1 min | flow start |
+| `POST /auth/oauth/:provider/callback` | 20 | 1 min | code exchange |
+| `POST /invitations/accept` | 10 | 1 min | invitation token brute-force |
+
+All other authenticated endpoints fall back to the global default. Health checks (`/health`, `/health/ready`) opt out via `@SkipThrottle`. When `NODE_ENV=test`, the guard is short-circuited via `skipIf` so e2e suites aren't penalised for repeated requests from the same IP.
+
+To add a new tightened limit:
+
+```ts
+// src/shared/decorators/rate-limits.ts
+export const RATE_LIMITS = {
+  // ...
+  myEndpoint: { limit: 3, ttl: minutes(5) },
+};
+
+// in the controller
+@RateLimit('myEndpoint')
+@Post('something')
+```
+
+Behind a reverse proxy, set `app.set('trust proxy', true)` in `main.ts` so `req.ip` reflects the real client IP — otherwise everyone shares the proxy's IP and limits become useless.
+
 ## Error envelope
 
 All errors are normalized by `AllExceptionsFilter`:

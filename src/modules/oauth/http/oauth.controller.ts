@@ -21,6 +21,7 @@ import {
 import type { Request } from 'express';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
+import { RateLimit } from '@shared/decorators/rate-limits';
 import type { AccessTokenPayload } from '@modules/auth/services/token.service';
 import { isOAuthProviderName, OAuthProviderName } from '../constants/providers';
 import { StartOAuthUseCase } from '../use-cases/start-oauth.use-case';
@@ -49,6 +50,7 @@ export class OAuthController {
 
   @Public()
   @Get(':provider/login')
+  @RateLimit('oauthStart')
   @ApiOperation({ summary: 'Begin OAuth login flow' })
   @ApiParam({ name: 'provider', enum: ['google', 'github'] })
   @ApiResponse({ status: 200, description: 'Authorization URL to redirect to' })
@@ -65,6 +67,7 @@ export class OAuthController {
 
   @ApiBearerAuth()
   @Post(':provider/link')
+  @RateLimit('oauthStart')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin OAuth account linking flow' })
   @ApiParam({ name: 'provider', enum: ['google', 'github'] })
@@ -83,6 +86,7 @@ export class OAuthController {
 
   @Public()
   @Post(':provider/callback')
+  @RateLimit('oauthCallback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete OAuth flow with code+state' })
   @ApiParam({ name: 'provider', enum: ['google', 'github'] })

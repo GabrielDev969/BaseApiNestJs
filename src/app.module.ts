@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { env } from './config/env.config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@shared/database/prisma.module';
 import { Request, Response } from 'express';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
@@ -43,12 +43,16 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
         redact: ['req.headers.authorization', 'req.headers.cookie'],
       },
     }),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 100,
-      },
-    ]),
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          name: 'default',
+          ttl: env.THROTTLE_TTL * 1000,
+          limit: env.THROTTLE_LIMIT,
+        },
+      ],
+      skipIf: () => env.NODE_ENV === 'test',
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -63,6 +67,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
   controllers: [],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
