@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as crypto from 'crypto';
 import { env } from 'src/config/env.config';
 
 export interface AccessTokenPayload {
@@ -23,7 +24,7 @@ export class TokenService {
 
   async signRefreshToken(userId: string): Promise<string> {
     return this.jwt.signAsync(
-      { sub: userId },
+      { sub: userId, jti: crypto.randomUUID() },
       {
         secret: env.JWT_REFRESH_SECRET,
         expiresIn: env.JWT_REFRESH_EXPIRES_IN,
