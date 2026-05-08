@@ -1,98 +1,247 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Workspace API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Multi-tenant NestJS API with workspaces, RBAC, JWT auth, 2FA, OAuth (Google + GitHub), audit logging, and a global super admin.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+- **Stack**: NestJS 11, Prisma 7 + PostgreSQL, Passport JWT, Argon2id, Zod, Pino, Helmet, Swagger, Jest + Testcontainers.
+- **Layout**: each domain module is split into `http/` (controllers, DTOs), `use-cases/`, `services/`, `repositories/`, `entities/`. Repos are abstract classes injected by type — no `@Inject` / Symbol tokens.
+- **Conventions**: see [CLAUDE.md](./CLAUDE.md) for the non-negotiable rules (English-only code, abstract-class repos, soft delete, etc.).
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Requirements
 
-## Project setup
+- Node.js **>= 20**
+- pnpm **10.33** (pinned in `packageManager`)
+- Docker (for Postgres + Redis locally, and for E2E tests via Testcontainers)
+
+## Setup
 
 ```bash
-$ pnpm install
+pnpm install
+cp .env.example .env
+# Generate strong secrets:
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # JWT_ACCESS_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # JWT_REFRESH_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # ENCRYPTION_KEY (must be 32 bytes hex = 64 chars)
+# Edit .env, paste the values, set SUPER_ADMIN_*
+
+docker compose up -d                  # Postgres + Redis
+pnpm exec prisma migrate dev          # apply schema
+pnpm exec prisma db seed              # seed permissions + super admin
+pnpm run start:dev                    # http://localhost:3000
 ```
 
-## Compile and run the project
+Once the app is up:
+
+- **API base**: `http://localhost:3000/api/v1`
+- **Swagger UI** (dev only): `http://localhost:3000/docs`
+- **Health**: `http://localhost:3000/health` and `/health/ready`
+
+## Environment
+
+All variables are validated by Zod at boot (`src/config/env.config.ts`). The app refuses to start with an invalid set.
+
+| Variable | Required | Notes |
+|---|---|---|
+| `NODE_ENV` | – | `development` / `production` / `test` |
+| `PORT` | – | default `3000` |
+| `APP_URL` | yes | base URL the API is served at |
+| `DATABASE_URL` | yes | Postgres connection string |
+| `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD` | host/port yes | Redis (used by BullMQ) |
+| `JWT_ACCESS_SECRET` | yes | min 32 chars |
+| `JWT_REFRESH_SECRET` | yes | min 32 chars |
+| `JWT_ACCESS_EXPIRES_IN` | – | default `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | – | default `7d` |
+| `ENCRYPTION_KEY` | yes | exactly 64 hex chars (32 bytes) — used to encrypt 2FA secrets |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | optional | all three together; otherwise Google OAuth is disabled |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_CALLBACK_URL` | optional | all three together; otherwise GitHub OAuth is disabled |
+| `THROTTLE_TTL` / `THROTTLE_LIMIT` | – | global rate limit, default 60s / 100 req |
+| `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` / `SUPER_ADMIN_NAME` | yes (seed) | provisioned by `prisma db seed` |
+| `CORS_ORIGINS` | optional | comma-separated; defaults to `*` |
+
+## Scripts
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+pnpm run start:dev      # dev with watch
+pnpm run start:prod     # node dist/main (after `pnpm run build`)
+pnpm run build          # nest build
+pnpm run lint           # eslint --fix
+pnpm test               # unit tests
+pnpm test:cov           # unit + coverage
+pnpm test:e2e           # e2e with Testcontainers (Docker required)
+pnpm exec prisma migrate dev   # apply migrations
+pnpm exec prisma db seed       # seed permissions + super admin
 ```
 
-## Run tests
+## Project layout
 
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+```
+src/
+  config/                 # env validation
+  modules/
+    auth/                 # register, login, refresh, /me, 2FA
+    oauth/                # Google + GitHub OAuth (login + linking)
+    users/                # workspace-scoped user CRUD
+    workspaces/           # list / get / update / delete
+    rbac/                 # roles + permissions
+    invitations/          # send / accept / revoke
+    sessions/             # active sessions, revoke
+    audit/                # query audit logs
+    health/               # liveness + readiness
+  shared/
+    database/             # PrismaService
+    decorators/           # @Public, @CurrentUser, @CurrentWorkspace, @RequirePermissions, @Audit
+    filters/              # AllExceptionsFilter (normalized error envelope)
+    guards/               # JwtAuthGuard (global), WorkspaceGuard, PermissionsGuard
+    interceptors/         # AuditInterceptor (global)
+    pipes/ utils/ types/
+test/
+  helpers/                # test-app, test-database (Testcontainers)
+  *.e2e-spec.ts
+prisma/
+  schema.prisma  migrations/  seed.ts
 ```
 
-## Deployment
+## Endpoints
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+All paths below are prefixed with `/api/v1` unless marked otherwise. URI versioning is enabled with default `v1`. `/health` and `/health/ready` are version-neutral and live outside the prefix.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Auth model:
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+- `JwtAuthGuard` is global. Routes default to authenticated; public routes opt out with `@Public()`.
+- Workspace-scoped routes additionally require `WorkspaceGuard` + a permission check via `@RequirePermissions(...)`. Send the workspace via the `x-workspace-id` header (or `:workspaceId` route param when present). Super admins (members of the `__admin__` workspace) bypass workspace membership checks.
+
+### Auth (`/auth`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/auth/register` | public | Create user + personal workspace |
+| `POST` | `/auth/login` | public | Returns tokens, or `{ requires2FA, challenge }` |
+| `POST` | `/auth/refresh` | public | Rotate refresh token |
+| `GET`  | `/auth/me` | bearer | Current user, workspaces, `isSuperAdmin` |
+| `POST` | `/auth/2fa/setup` | bearer | Generate TOTP secret + otpauth URL |
+| `POST` | `/auth/2fa/enable` | bearer | Activate 2FA after first valid code; returns 10 recovery codes (shown once) |
+| `POST` | `/auth/2fa/disable` | bearer | Requires password + current TOTP |
+| `POST` | `/auth/2fa/verify` | public | Complete 2FA-required login (TOTP **or** recovery code) |
+
+### OAuth (`/auth/oauth`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET`  | `/auth/oauth/:provider/login` | public | Begin login flow; returns `{ authorizationUrl }` |
+| `POST` | `/auth/oauth/:provider/link` | bearer | Begin account-linking flow; returns `{ authorizationUrl }` |
+| `POST` | `/auth/oauth/:provider/callback` | public | Body: `{ code, state }`. Returns tokens (login) or link confirmation |
+| `GET`  | `/auth/oauth/accounts` | bearer | List linked OAuth accounts |
+| `DELETE` | `/auth/oauth/accounts/:id` | bearer | Unlink (blocks if it's the only credential) |
+
+`:provider` ∈ `google` | `github`. State is a signed JWT (5 min TTL) — no server-side session needed. If a provider isn't configured (env vars missing), endpoints for it return 404.
+
+OAuth flow:
+
+1. Frontend hits `GET /auth/oauth/google/login` → receives `authorizationUrl`.
+2. User is redirected to the provider, signs in, and is sent to `*_CALLBACK_URL` with `?code=...&state=...`.
+3. Frontend forwards `{ code, state }` to `POST /auth/oauth/google/callback`.
+4. If the provider identity is already linked → tokens returned. Else if email is unknown → user + personal workspace created and tokens returned. Else (email exists, no link) → 409: user must sign in and link from settings.
+
+### Sessions (`/auth/sessions`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET`    | `/auth/sessions` | bearer | List active sessions for current user |
+| `DELETE` | `/auth/sessions/:id` | bearer | Revoke one session |
+| `DELETE` | `/auth/sessions` | bearer | Revoke all sessions except the current one |
+
+### Workspaces (`/workspaces`)
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET`    | `/workspaces` | – | List workspaces the user belongs to (filters out `__admin__`) |
+| `GET`    | `/workspaces/:workspaceId` | `workspace:read` | Get workspace |
+| `PATCH`  | `/workspaces/:workspaceId` | `workspace:update` | Update name (admin workspace blocked) |
+| `DELETE` | `/workspaces/:workspaceId` | `workspace:delete` | Soft delete (admin + personal blocked) |
+
+### Users (`/users`) — workspace-scoped, requires `x-workspace-id`
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET`    | `/users` | `user:read` | Paginated list (`?page&limit&search`) |
+| `GET`    | `/users/:id` | `user:read` | Get by id within workspace |
+| `POST`   | `/users` | `user:create` | Create + add as member |
+| `PATCH`  | `/users/:id` | `user:update` | Update name/email |
+| `DELETE` | `/users/:id` | `user:delete` | Soft delete |
+
+### RBAC (`/rbac/roles`) — workspace-scoped
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET`    | `/rbac/roles` | `role:read` | List roles |
+| `POST`   | `/rbac/roles` | `role:create` | Create role |
+| `PATCH`  | `/rbac/roles/:id` | `role:update` | Rename/redescribe (system roles blocked) |
+| `DELETE` | `/rbac/roles/:id` | `role:delete` | Delete role (blocked if in use; system roles blocked) |
+| `POST`   | `/rbac/roles/:id/permissions` | `role:update` | Assign a permission key |
+
+Built-in permissions: `user:{read,create,update,delete}`, `workspace:{read,update,delete,invite,remove_member}`, `role:{read,create,update,delete,assign}`, `audit:read`. Super admin role has all of them.
+
+### Invitations (`/invitations`) — workspace-scoped except `accept`
+
+| Method | Path | Auth / Permission | Description |
+|---|---|---|---|
+| `GET`    | `/invitations` | `workspace:invite` | List pending invitations |
+| `POST`   | `/invitations` | `workspace:invite` | Send (returns the acceptance token — wire your email service to deliver it) |
+| `DELETE` | `/invitations/:id` | `workspace:invite` | Revoke pending invitation |
+| `POST`   | `/invitations/accept` | bearer | Accept by token; logged-in email must match |
+
+Tokens are stored as sha256 hashes; TTL is 7 days; expired or accepted tokens return 400.
+
+### Audit (`/audit-logs`) — workspace-scoped
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/audit-logs` | `audit:read` | Paginated; filter by `userId`, `action`, `from`, `to` |
+
+The `AuditInterceptor` is global — endpoints decorated with `@Audit({ action, resource })` are recorded automatically.
+
+### Health (`/health`) — outside `/api/v1`, no auth
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Liveness — always 200 if process is up |
+| `GET` | `/health/ready` | Readiness — pings the database, 503 if down |
+
+## Error envelope
+
+All errors are normalized by `AllExceptionsFilter`:
+
+```json
+{
+  "statusCode": 404,
+  "error": "Not Found",
+  "message": "User not found",
+  "details": ["email must be a valid email"],
+  "timestamp": "2026-05-08T12:34:56.789Z",
+  "path": "/api/v1/users/abc",
+  "requestId": "req-12",
+  "stack": "..."
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- `details` only on validation errors (400).
+- `requestId` present when pino-http populated it.
+- `stack` only outside `production`.
+- Prisma errors are mapped: `P2002 → 409`, `P2025 → 404`, `P2003 → 409`, `P2014 → 400`.
 
-## Resources
+## Testing
 
-Check out a few resources that may come in handy when working with NestJS:
+- `pnpm test` — unit tests (no Docker).
+- `pnpm test:e2e` — full HTTP→DB tests against a real Postgres spun up by Testcontainers; runs migrations with `prisma migrate deploy`. Docker must be running.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Reset between e2e tests is `TRUNCATE … CASCADE` (see `test/helpers/test-database.ts`).
 
-## Support
+## CI
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+`.github/workflows/ci.yml`:
 
-## Stay in touch
+1. **`verify`** — install, `prisma generate`, `eslint --max-warnings 0`, `nest build`, unit tests.
+2. **`e2e`** — runs after `verify`, executes the e2e suite with Testcontainers.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Triggered on PRs and pushes to `main`. Concurrency cancels superseded runs. Node and pnpm versions come from `engines` and `packageManager` in `package.json`.
