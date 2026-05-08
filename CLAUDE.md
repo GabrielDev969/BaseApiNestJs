@@ -180,6 +180,15 @@ Há um filter global (`AllExceptionsFilter`) que normaliza **todas** as resposta
 - 5xx são logados via `Logger`. 4xx não.
 - `stack` só aparece fora de produção.
 
+## CI
+
+GitHub Actions roda em PRs e pushes pra `main` (`.github/workflows/ci.yml`):
+
+1. **`verify`** — install + `prisma generate` + `eslint --max-warnings 0` + `nest build` + `pnpm test` (unit)
+2. **`e2e`** — depois do `verify`, roda `jest -c test/jest-e2e.json --runInBand` (Postgres via testcontainers; o runner do Actions já tem Docker)
+
+Versão do Node e pnpm vêm do `packageManager` e `engines` no `package.json`. Sem hardcode no workflow.
+
 ## Comandos
 
 ```bash
