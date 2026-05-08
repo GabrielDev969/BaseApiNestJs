@@ -42,5 +42,6 @@ import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
     DisableTwoFactorUseCase,
     VerifyTwoFactorUseCase,
   ],
+  exports: [LoginUseCase, TokenService],
 })
 export class AuthModule {}

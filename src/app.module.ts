@@ -17,6 +17,7 @@ import { RbacModule } from '@modules/rbac/rbac.module';
 import { SessionsModule } from '@modules/sessions/sessions.module';
 import { InvitationsModule } from '@modules/invitations/invitations.module';
 import { HealthModule } from '@modules/health/health.module';
+import { OAuthModule } from '@modules/oauth/oauth.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { HealthModule } from '@modules/health/health.module';
     InvitationsModule,
     AuditModule,
     HealthModule,
+    OAuthModule,
   ],
   controllers: [],
   providers: [
