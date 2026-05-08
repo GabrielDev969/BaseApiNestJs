@@ -208,6 +208,29 @@ The `AuditInterceptor` is global — endpoints decorated with `@Audit({ action, 
 | `GET` | `/health` | Liveness — always 200 if process is up |
 | `GET` | `/health/ready` | Readiness — pings the database, 503 if down |
 
+## Password policy
+
+Anywhere a password is accepted (`POST /auth/register`, `POST /users`), the field is validated by `@IsStrongPassword()` (`src/shared/decorators/is-strong-password.decorator.ts`), backed by the rules in `src/shared/utils/password-policy.util.ts`.
+
+| Rule | Default |
+|---|---|
+| Length | 12 – 128 characters |
+| Character classes | at least one uppercase, lowercase, digit, special |
+| Whitespace | not allowed |
+| Repeated characters | no run longer than 3 of the same char (`aaaa` rejected) |
+| Sequences | no ascending/descending runs of length ≥ 4 (`1234`, `dcba`) and no 4-char keyboard slices (`qwer`, `asdf`, `1234`) |
+| Common passwords | small inline blocklist (`password`, `qwerty`, `admin123`, …) |
+| Personal info | password must not contain the user's name (per word) or email local-part if those tokens are ≥ 4 chars |
+
+All violations for a single password are returned together in the `details` array of the validation error envelope, joined with `; ` so the client can split or render them as a list.
+
+To extend:
+
+- **Tighten thresholds**: edit `PASSWORD_POLICY` in `password-policy.util.ts`.
+- **Add a custom rule**: append a check inside `validatePasswordPolicy` returning a string in the violation list.
+- **Add a forbidden password**: append to `COMMON_PASSWORDS`.
+- **Apply to a new DTO**: `@IsStrongPassword()` on the field; if you want personal-info checks, expose `email` and/or `name` on the same DTO (the constraint reads them via `args.object`).
+
 ## Logging
 
 Structured logs via [`nestjs-pino`](https://github.com/iamolegga/nestjs-pino) and [`pino-http`](https://github.com/pinojs/pino-http). Configured in `src/config/logger.config.ts`.

@@ -1,12 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform, TransformFnParams } from 'class-transformer';
-import {
-  IsEmail,
-  IsString,
-  MinLength,
-  MaxLength,
-  Matches,
-} from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { IsStrongPassword } from '@shared/decorators/is-strong-password.decorator';
+import { PASSWORD_POLICY } from '@shared/utils/password-policy.util';
 
 export class RegisterDto {
   @ApiProperty({
@@ -36,24 +32,13 @@ export class RegisterDto {
   name: string;
 
   @ApiProperty({
-    example: 'StrongPass@123',
+    example: 'Tr0ub4dor&3-quay',
     description:
-      'Min 12 chars, with uppercase, lowercase, number and special character',
-    minLength: 12,
-    maxLength: 128,
+      'Strong password: min 12 chars with upper/lower/digit/special, no whitespace, no common passwords, no character runs or sequences, must not contain your email or name.',
+    minLength: PASSWORD_POLICY.minLength,
+    maxLength: PASSWORD_POLICY.maxLength,
   })
   @IsString()
-  @MinLength(12, { message: 'Password must be at least 12 characters' })
-  @MaxLength(128, { message: 'Password is too long' })
-  @Matches(/[A-Z]/, {
-    message: 'Password must contain at least one uppercase letter',
-  })
-  @Matches(/[a-z]/, {
-    message: 'Password must contain at least one lowercase letter',
-  })
-  @Matches(/[0-9]/, { message: 'Password must contain at least one number' })
-  @Matches(/[^A-Za-z0-9]/, {
-    message: 'Password must contain at least one special character',
-  })
+  @IsStrongPassword()
   password: string;
 }

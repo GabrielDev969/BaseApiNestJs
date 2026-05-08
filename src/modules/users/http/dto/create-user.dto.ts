@@ -6,8 +6,9 @@ import {
   IsUUID,
   MinLength,
   MaxLength,
-  Matches,
 } from 'class-validator';
+import { IsStrongPassword } from '@shared/decorators/is-strong-password.decorator';
+import { PASSWORD_POLICY } from '@shared/utils/password-policy.util';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@company.com', maxLength: 255 })
@@ -27,14 +28,14 @@ export class CreateUserDto {
   )
   name: string;
 
-  @ApiProperty({ example: 'StrongPass@123', minLength: 12, maxLength: 128 })
+  @ApiProperty({
+    example: 'Tr0ub4dor&3-quay',
+    minLength: PASSWORD_POLICY.minLength,
+    maxLength: PASSWORD_POLICY.maxLength,
+    description: 'Strong password (see register endpoint for full rules)',
+  })
   @IsString()
-  @MinLength(12)
-  @MaxLength(128)
-  @Matches(/[A-Z]/, { message: 'Must contain uppercase letter' })
-  @Matches(/[a-z]/, { message: 'Must contain lowercase letter' })
-  @Matches(/[0-9]/, { message: 'Must contain a number' })
-  @Matches(/[^A-Za-z0-9]/, { message: 'Must contain a special character' })
+  @IsStrongPassword()
   password: string;
 
   @ApiProperty({
