@@ -7,7 +7,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
@@ -20,18 +20,44 @@ const adapter = new PrismaPg(pool);
 
 @Injectable()
 export class PrismaService
-  extends PrismaClient
+  extends PrismaClient<{
+    adapter: typeof adapter;
+    log: [
+      { level: 'query'; emit: 'event' },
+      { level: 'warn'; emit: 'event' },
+      { level: 'error'; emit: 'event' },
+    ];
+  }>
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
+
   constructor() {
     super({
       adapter,
-      log: ['warn', 'error'],
+      log: [
+        { level: 'query', emit: 'event' },
+        { level: 'warn', emit: 'event' },
+        { level: 'error', emit: 'event' },
+      ],
     });
   }
 
   async onModuleInit(): Promise<void> {
+    this.$on('query', (event: Prisma.QueryEvent) => {
+      if (event.duration >= env.LOG_SLOW_QUERY_MS) {
+        this.logger.warn({
+          msg: 'Slow query',
+          durationMs: event.duration,
+          thresholdMs: env.LOG_SLOW_QUERY_MS,
+          query: event.query,
+          params: event.params,
+        });
+      }
+    });
+    this.$on('warn', (event: Prisma.LogEvent) => this.logger.warn(event));
+    this.$on('error', (event: Prisma.LogEvent) => this.logger.error(event));
+
     await this.$connect();
     this.logger.log('Prisma connected');
   }

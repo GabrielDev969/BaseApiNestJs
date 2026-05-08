@@ -208,6 +208,72 @@ The `AuditInterceptor` is global — endpoints decorated with `@Audit({ action, 
 | `GET` | `/health` | Liveness — always 200 if process is up |
 | `GET` | `/health/ready` | Readiness — pings the database, 503 if down |
 
+## Logging
+
+Structured logs via [`nestjs-pino`](https://github.com/iamolegga/nestjs-pino) and [`pino-http`](https://github.com/pinojs/pino-http). Configured in `src/config/logger.config.ts`.
+
+**Per-request log line** (one per response):
+
+```json
+{
+  "level": 30,
+  "time": 1736250000000,
+  "msg": "POST /api/v1/auth/login 200 124ms",
+  "requestId": "9e7a...uuid",
+  "durationMs": 124,
+  "userId": "uuid-of-authenticated-user",
+  "workspaceId": "uuid-of-target-workspace",
+  "role": "Owner",
+  "request": { "method": "POST", "url": "/api/v1/auth/login", "id": "9e7a..." },
+  "response": { "statusCode": 200 }
+}
+```
+
+Highlights:
+
+- **Per-status log level** — `info` for 2xx/3xx, `warn` for 4xx, `error` for 5xx (so a `level >= 40` filter shows only failures).
+- **Correlation ID** — every request gets a UUID (or honours an inbound `x-request-id` header for cross-service tracing). The same id is echoed back in the `x-request-id` response header so clients can include it in bug reports.
+- **User / workspace context** — once the JWT and workspace guards run, every subsequent log line on that request carries `userId`, `workspaceId`, and `role` automatically.
+- **Header redaction** — `authorization` and `cookie` are redacted; controllers should never log the raw request body for sensitive payloads (the `AuditInterceptor` already redacts `password`, `passwordHash`, `refreshToken`, `twoFactorSecret`, `recoveryCodes`).
+
+### Performance signals
+
+| Signal | Where | Trigger | Default threshold |
+|---|---|---|---|
+| `durationMs` on every request | pino-http (response complete) | always | – |
+| `Slow request` warn | `PerformanceInterceptor` (handler-level) | handler exceeds threshold | `LOG_SLOW_REQUEST_MS` (1000ms) |
+| `Slow query` warn | `PrismaService` `query` event | individual SQL exceeds threshold | `LOG_SLOW_QUERY_MS` (100ms) |
+
+Slow-request log line:
+
+```json
+{ "level": 40, "msg": "Slow request", "handler": "UsersController.list",
+  "url": "/api/v1/users", "durationMs": 1432, "thresholdMs": 1000, "requestId": "..." }
+```
+
+Slow-query log line:
+
+```json
+{ "level": 40, "msg": "Slow query", "durationMs": 218, "thresholdMs": 100,
+  "query": "SELECT \"User\".* FROM \"User\" WHERE ...", "params": "[\"...\"]" }
+```
+
+### Env vars
+
+| Variable | Default | Notes |
+|---|---|---|
+| `LOG_LEVEL` | `debug` (dev) / `info` (prod) / `silent` (test) | `fatal` `error` `warn` `info` `debug` `trace` `silent` |
+| `LOG_PRETTY` | `true` outside production | Use `pino-pretty` (human-readable single-line). Set `false` in containers to keep raw JSON for log shipping. |
+| `LOG_SLOW_REQUEST_MS` | `1000` | Threshold for the slow-request interceptor warn |
+| `LOG_SLOW_QUERY_MS` | `100` | Threshold for Prisma slow-query warn |
+
+### Tips
+
+- **Grep one user's traffic**: `… | jq 'select(.userId == "uuid")'`.
+- **Reproduce a customer-reported issue**: ask for the `x-request-id` from the response — it appears in `requestId` on every log line for that request.
+- **Behind a reverse proxy**: set `app.set('trust proxy', true)` in `main.ts` so `req.ip` reflects the real client (also matters for rate limiting).
+- **Production**: set `LOG_PRETTY=false` to keep raw JSON; pino's NDJSON is what most log shippers expect.
+
 ## Rate limiting
 
 Throttling is enforced globally by `ThrottlerGuard` (registered in `app.module.ts`). The default throttler reads `THROTTLE_TTL` (seconds) and `THROTTLE_LIMIT` from env — by default **100 requests per 60 seconds**, tracked per-IP.

@@ -41,6 +41,13 @@ const envSchema = z
 
     THROTTLE_TTL: z.coerce.number().default(60),
     THROTTLE_LIMIT: z.coerce.number().default(100),
+
+    LOG_LEVEL: z
+      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+      .optional(),
+    LOG_PRETTY: z.coerce.boolean().optional(),
+    LOG_SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
+    LOG_SLOW_QUERY_MS: z.coerce.number().int().positive().default(100),
   })
   .refine(
     (data) => {

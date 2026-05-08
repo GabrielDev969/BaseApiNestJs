@@ -2,12 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { env } from './config/env.config';
+import { loggerConfig } from './config/logger.config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@shared/database/prisma.module';
-import { Request, Response } from 'express';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
+import { PerformanceInterceptor } from '@shared/interceptors/performance.interceptor';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
 import { AuditModule } from '@modules/audit/audit.module';
 import { AuthModule } from '@modules/auth/auth.module';
@@ -24,25 +25,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    LoggerModule.forRoot({
-      pinoHttp: {
-        transport:
-          env.NODE_ENV !== 'production'
-            ? { target: 'pino-pretty', options: { singleLine: true } }
-            : undefined,
-        serializers: {
-          req: (req: Request & { id?: string }) => ({
-            method: req.method,
-            url: req.url,
-            id: req.id,
-          }),
-          res: (res: Response) => ({
-            statusCode: res.statusCode,
-          }),
-        },
-        redact: ['req.headers.authorization', 'req.headers.cookie'],
-      },
-    }),
+    LoggerModule.forRoot(loggerConfig),
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -69,6 +52,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_INTERCEPTOR, useClass: PerformanceInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
