@@ -5,9 +5,10 @@ import { env } from './config/env.config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@shared/database/prisma.module';
 import { Request, Response } from 'express';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
+import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
 import { AuditModule } from '@modules/audit/audit.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { UsersModule } from '@modules/users/users.module';
@@ -59,6 +60,7 @@ import { HealthModule } from '@modules/health/health.module';
   ],
   controllers: [],
   providers: [
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

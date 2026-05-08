@@ -156,6 +156,30 @@ pnpm test:e2e            # e2e (precisa Docker)
 
 **Antes de produção:** rode `pnpm test && pnpm test:e2e` no CI.
 
+## Error responses
+
+Há um filter global (`AllExceptionsFilter`) que normaliza **todas** as respostas de erro para este formato:
+
+```json
+{
+  "statusCode": 404,
+  "error": "Not Found",
+  "message": "User not found",
+  "details": ["email must be a valid email"],   // só em validation 400
+  "timestamp": "2026-05-07T12:34:56.789Z",
+  "path": "/api/v1/users/abc",
+  "requestId": "req-12",                         // se pino-http populou
+  "stack": "..."                                  // só em NODE_ENV != production
+}
+```
+
+**Regras:**
+- Não escreva tratamento manual em controllers (sem try/catch só pra responder erro). Lance exceções HTTP do Nest e o filter normaliza.
+- `class-validator` errors viram `details: string[]` com `message: "Validation failed"`.
+- `Prisma.PrismaClientKnownRequestError` é mapeado: `P2002 → 409`, `P2025 → 404`, `P2003 → 409`, `P2014 → 400`. Outros caem em 500.
+- 5xx são logados via `Logger`. 4xx não.
+- `stack` só aparece fora de produção.
+
 ## Comandos
 
 ```bash
