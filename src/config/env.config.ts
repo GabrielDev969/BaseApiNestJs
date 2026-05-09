@@ -8,6 +8,17 @@ const envSchema = z
       .default('development'),
     PORT: z.coerce.number().default(3000),
     APP_URL: z.string().url(),
+    CORS_ORIGINS: z
+      .string()
+      .optional()
+      .transform((val) =>
+        val
+          ? val
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : undefined,
+      ),
 
     DATABASE_URL: z.string().url(),
 
@@ -69,6 +80,14 @@ const envSchema = z
     {
       message:
         'GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET must be provided together',
+    },
+  )
+  .refine(
+    (data) =>
+      data.NODE_ENV !== 'production' ||
+      (data.CORS_ORIGINS !== undefined && data.CORS_ORIGINS.length > 0),
+    {
+      message: 'CORS_ORIGINS must be set (non-empty) when NODE_ENV=production',
     },
   );
 
