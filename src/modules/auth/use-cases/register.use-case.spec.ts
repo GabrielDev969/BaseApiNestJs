@@ -4,10 +4,12 @@ import { UsersRepository } from '@modules/users/repositories/users.repository.in
 import { CreateWorkspaceUseCase } from '@modules/workspaces/use-cases/create-workspace.use-case';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { User } from '@modules/users/entities/user.entity';
+import { MetricsService } from '@shared/metrics/metrics.service';
 
 describe('RegisterUseCase', () => {
   let users: jest.Mocked<UsersRepository>;
   let createWorkspace: jest.Mocked<CreateWorkspaceUseCase>;
+  let metrics: jest.Mocked<MetricsService>;
   let useCase: RegisterUseCase;
 
   beforeEach(() => {
@@ -23,7 +25,10 @@ describe('RegisterUseCase', () => {
     createWorkspace = {
       execute: jest.fn(),
     } as unknown as jest.Mocked<CreateWorkspaceUseCase>;
-    useCase = new RegisterUseCase(users, createWorkspace);
+    metrics = {
+      incRegister: jest.fn(),
+    } as unknown as jest.Mocked<MetricsService>;
+    useCase = new RegisterUseCase(users, createWorkspace, metrics);
   });
 
   it('creates a user, hashes the password and provisions a personal workspace', async () => {

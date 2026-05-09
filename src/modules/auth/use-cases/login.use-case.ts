@@ -3,6 +3,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { TokenService } from '../services/token.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { CreateSessionUseCase } from '@modules/sessions/use-cases/create-session.use-case';
+import { MetricsService } from '@shared/metrics/metrics.service';
 
 interface LoginInput {
   email: string;
@@ -17,24 +18,32 @@ export class LoginUseCase {
     private users: UsersRepository,
     private tokens: TokenService,
     private createSession: CreateSessionUseCase,
+    private metrics: MetricsService,
   ) {}
 
   async execute(input: LoginInput) {
     const user = await this.users.findByEmail(input.email);
-    if (!user || !user.passwordHash)
+    if (!user || !user.passwordHash) {
+      this.metrics.incLoginAttempt('failure');
       throw new UnauthorizedException('Invalid credentials');
+    }
 
     const valid = await CryptoUtil.verifyPassword(
       user.passwordHash,
       input.password,
     );
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (!valid) {
+      this.metrics.incLoginAttempt('failure');
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     if (user.twoFactorEnabled) {
+      this.metrics.incLoginAttempt('requires_2fa');
       const challenge = await this.tokens.signChallengeToken(user.id);
       return { requires2FA: true as const, challenge };
     }
 
+    this.metrics.incLoginAttempt('success');
     return this.issueTokens(user.id, input.userAgent, input.ipAddress);
   }
 

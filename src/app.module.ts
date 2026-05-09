@@ -9,6 +9,8 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CustomThrottlerGuard } from '@shared/guards/custom-throttler.guard';
 import { AppCacheModule } from '@shared/cache/cache.module';
+import { MetricsModule } from '@shared/metrics/metrics.module';
+import { MetricsInterceptor } from '@shared/metrics/metrics.interceptor';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
 import { PerformanceInterceptor } from '@shared/interceptors/performance.interceptor';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
@@ -40,6 +42,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
     }),
     PrismaModule,
     AppCacheModule,
+    MetricsModule,
     AuthModule,
     UsersModule,
     WorkspacesModule,
@@ -56,6 +59,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: CustomThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: PerformanceInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })

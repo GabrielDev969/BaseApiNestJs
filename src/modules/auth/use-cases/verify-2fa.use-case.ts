@@ -7,6 +7,7 @@ import { UsersRepository } from '@modules/users/repositories/users.repository.in
 import { TokenService } from '../services/token.service';
 import { TwoFactorService } from '../services/two-factor.service';
 import { LoginUseCase } from './login.use-case';
+import { MetricsService } from '@shared/metrics/metrics.service';
 
 interface VerifyInput {
   challenge: string;
@@ -22,6 +23,7 @@ export class VerifyTwoFactorUseCase {
     private tokens: TokenService,
     private twoFactor: TwoFactorService,
     private loginUseCase: LoginUseCase,
+    private metrics: MetricsService,
   ) {}
 
   async execute(input: VerifyInput) {
@@ -29,6 +31,7 @@ export class VerifyTwoFactorUseCase {
     try {
       userId = await this.tokens.verifyChallengeToken(input.challenge);
     } catch {
+      this.metrics.incTwoFactorVerify('invalid_challenge');
       throw new UnauthorizedException('Invalid or expired challenge');
     }
 
@@ -44,10 +47,14 @@ export class VerifyTwoFactorUseCase {
         user.recoveryCodes,
         input.code,
       );
-      if (!remaining) throw new UnauthorizedException('Invalid code');
+      if (!remaining) {
+        this.metrics.incTwoFactorVerify('invalid_code');
+        throw new UnauthorizedException('Invalid code');
+      }
       await this.users.update(userId, { recoveryCodes: remaining });
     }
 
+    this.metrics.incTwoFactorVerify('success');
     return this.loginUseCase.issueTokens(
       userId,
       input.userAgent,

@@ -8,6 +8,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { MetricsService, DbOperation } from '@shared/metrics/metrics.service';
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
@@ -32,7 +33,7 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor() {
+  constructor(private readonly metrics: MetricsService) {
     super({
       adapter,
       log: [
@@ -45,6 +46,14 @@ export class PrismaService
 
   async onModuleInit(): Promise<void> {
     this.$on('query', (event: Prisma.QueryEvent) => {
+      const op = (event.query.trim().split(' ')[0] || 'OTHER').toUpperCase();
+      const operation: DbOperation = (
+        ['SELECT', 'INSERT', 'UPDATE', 'DELETE'] as const
+      ).includes(op as 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE')
+        ? (op as DbOperation)
+        : 'OTHER';
+      this.metrics.observeQuery(operation, event.duration / 1000);
+
       if (event.duration >= env.LOG_SLOW_QUERY_MS) {
         this.logger.warn({
           msg: 'Slow query',

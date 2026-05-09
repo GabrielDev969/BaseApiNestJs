@@ -56,6 +56,8 @@ All variables are validated by Zod at boot (`src/config/env.config.ts`). The app
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_CALLBACK_URL` | optional | all three together; otherwise Google OAuth is disabled |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_CALLBACK_URL` | optional | all three together; otherwise GitHub OAuth is disabled |
 | `THROTTLE_TTL` / `THROTTLE_LIMIT` | – | global rate limit, default 60s / 100 req |
+| `METRICS_ALLOWED_IPS` | optional | CSV of IPs allowed to scrape `/metrics`. Empty = open (dev). Set to loopback + Prometheus scraper IP in prod. |
+| `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | optional | Used by the docker-compose `grafana` service. Default `admin`/`admin` — change for shared environments. |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` / `SUPER_ADMIN_NAME` | yes (seed) | provisioned by `prisma db seed` |
 | `CORS_ORIGINS` | optional | comma-separated; defaults to `*` |
 
@@ -89,12 +91,18 @@ src/
     audit/                # query audit logs
     health/               # liveness + readiness
   shared/
-    database/             # PrismaService
-    decorators/           # @Public, @CurrentUser, @CurrentWorkspace, @RequirePermissions, @Audit
+    database/             # PrismaService (instruments query duration metric)
+    cache/                # AppCacheModule, CacheService, @Cacheable, @InvalidateCache (Redis)
+    metrics/              # MetricsModule, MetricsService, MetricsInterceptor, /metrics controller
+    decorators/           # @Public, @CurrentUser, @CurrentWorkspace, @RequirePermissions, @Audit, @RateLimit
     filters/              # AllExceptionsFilter (normalized error envelope)
-    guards/               # JwtAuthGuard (global), WorkspaceGuard, PermissionsGuard
-    interceptors/         # AuditInterceptor (global)
+    guards/               # JwtAuthGuard (global), CustomThrottlerGuard (global), WorkspaceGuard, PermissionsGuard
+    interceptors/         # PerformanceInterceptor, MetricsInterceptor, AuditInterceptor (all global)
     pipes/ utils/ types/
+infra/
+  prometheus/prometheus.yml
+  grafana/provisioning/   # auto-provisioned datasource + dashboards
+  grafana/dashboards/     # JSON dashboards (committed)
 test/
   helpers/                # test-app, test-database (Testcontainers)
   *.e2e-spec.ts
@@ -297,9 +305,86 @@ Slow-query log line:
 - **Behind a reverse proxy**: set `app.set('trust proxy', true)` in `main.ts` so `req.ip` reflects the real client (also matters for rate limiting).
 - **Production**: set `LOG_PRETTY=false` to keep raw JSON; pino's NDJSON is what most log shippers expect.
 
+## Observability — Prometheus + Grafana
+
+Metrics are exposed in Prometheus text format at `GET /metrics` (outside `/api/v1`). The endpoint is wired by `MetricsController` (`src/shared/metrics/metrics.controller.ts`); the `MetricsInterceptor` is global and captures every HTTP request.
+
+### What's instrumented
+
+| Metric | Type | Labels | Source |
+|---|---|---|---|
+| `http_request_duration_seconds` | Histogram | `method`, `route`, `status_code` | `MetricsInterceptor` (every request) |
+| `http_requests_total` | Counter | `method`, `route`, `status_code` | `MetricsInterceptor` |
+| `auth_login_attempts_total` | Counter | `result` ∈ {`success`, `failure`, `requires_2fa`} | `LoginUseCase` |
+| `auth_register_total` | Counter | `result` ∈ {`success`, `conflict`} | `RegisterUseCase` |
+| `auth_2fa_enable_total` | Counter | `result` ∈ {`success`, `invalid_code`, `not_found`} | `EnableTwoFactorUseCase` |
+| `auth_2fa_verify_total` | Counter | `result` ∈ {`success`, `invalid_challenge`, `invalid_code`} | `VerifyTwoFactorUseCase` |
+| `database_query_duration_seconds` | Histogram | `operation` ∈ {`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `OTHER`} | `PrismaService.$on('query')` |
+| `nodejs_*`, `process_*` | various | – | `prom-client` default metrics (heap, GC, event-loop lag, RSS, FDs) |
+
+The `route` label uses Express route templates (e.g. `/users/:id`, not `/users/abc123`) so cardinality stays bounded. Unknown handlers (404s) get `route="unknown"`.
+
+### Protecting `/metrics`
+
+`MetricsIpAllowlistGuard` (`src/shared/metrics/metrics-ip-allowlist.guard.ts`) enforces `METRICS_ALLOWED_IPS`:
+
+- **Empty / unset** → endpoint is open (good for local dev).
+- **CSV of IPs** → only those `req.ip` values pass; anything else gets `403`.
+
+Behind a reverse proxy you must set `app.set('trust proxy', true)` in `main.ts` so the client IP — not the proxy's — is what the guard sees. Production should always allowlist (loopback + the Prometheus scraper).
+
+### Running the stack locally
+
+`docker-compose.yml` ships Prometheus and Grafana alongside Postgres and Redis:
+
+```bash
+docker compose up -d         # postgres + redis + prometheus + grafana
+pnpm run start:dev           # API on :3000
+
+# scrape endpoint
+curl -s http://localhost:3000/metrics | head -40
+
+# Prometheus UI (query / target health)
+open http://localhost:9090
+
+# Grafana — login = ${GRAFANA_ADMIN_USER:-admin} / ${GRAFANA_ADMIN_PASSWORD:-admin}
+open http://localhost:3001
+```
+
+The Grafana port is **3001** on the host (mapped to the container's `3000`) to avoid colliding with the API. The dashboard "Workspace API — Overview" is auto-provisioned in folder *Workspace API* on first boot.
+
+### What's in the dashboard
+
+`infra/grafana/dashboards/api-overview.json` (10 panels, `refresh: 10s`):
+
+- **Request rate (RPS) by route** — `sum by (method, route) (rate(http_requests_total[1m]))`
+- **Error rate (5xx %)** — color-coded thresholds (green / yellow at 1% / red at 5%)
+- **HTTP latency P50 / P95 / P99** — `histogram_quantile` over `http_request_duration_seconds_bucket`
+- **DB query P95 by operation** — same shape over `database_query_duration_seconds_bucket`
+- **Login attempts by result** — stacked bars (success/failure/requires_2fa)
+- **2FA verify success rate (5m)**, **2FA enables (5m)** — single stats
+- **Node.js heap used / total**, **event-loop lag P99**, **GC duration rate**
+
+To add a panel, edit the JSON or save a new version through the Grafana UI (`allowUiUpdates: true` in the provisioning config) — but commit the JSON back to `infra/grafana/dashboards/` to keep it reproducible.
+
+### Provisioning files
+
+```
+infra/
+  prometheus/prometheus.yml                          # scrape config (host.docker.internal:3000/metrics, 15s)
+  grafana/
+    provisioning/datasources/prometheus.yml         # auto-add the Prometheus datasource
+    provisioning/dashboards/dashboards.yml          # load JSONs from /var/lib/grafana/dashboards
+    dashboards/api-overview.json                    # the dashboard
+```
+
+Prometheus scrapes the **host** at `host.docker.internal:3000` because the API normally runs via `pnpm run start:dev` outside Docker. The `extra_hosts: host-gateway` mapping in compose makes this work on Linux too.
+
 ## Rate limiting
 
-Throttling is enforced globally by `ThrottlerGuard` (registered in `app.module.ts`). The default throttler reads `THROTTLE_TTL` (seconds) and `THROTTLE_LIMIT` from env — by default **100 requests per 60 seconds**, tracked per-IP.
+Throttling is enforced globally by `CustomThrottlerGuard` (`src/shared/guards/custom-throttler.guard.ts`), an extension of `@nestjs/throttler`'s `ThrottlerGuard` that **tracks by authenticated user ID first, falling back to IP** when `req.user` is absent (public routes). The default reads `THROTTLE_TTL` (seconds) and `THROTTLE_LIMIT` from env — **100 requests per 60 seconds**.
+
+Tracker keys are namespaced (`user:<id>` or `ip:<address>`) so a user behind a NAT shares neither the IP bucket nor a UUID collision space. The guard runs **after** `JwtAuthGuard` so `req.user.id` is populated for protected routes.
 
 Sensitive endpoints override the default with tighter limits via `@RateLimit('<key>')` (`src/shared/decorators/rate-limits.ts`):
 
@@ -333,6 +418,68 @@ export const RATE_LIMITS = {
 ```
 
 Behind a reverse proxy, set `app.set('trust proxy', true)` in `main.ts` so `req.ip` reflects the real client IP — otherwise everyone shares the proxy's IP and limits become useless.
+
+## Caching
+
+A Redis-backed cache layer lives in `src/shared/cache/` and is **transparent to use cases** — it's applied via decorators on repository methods. In `NODE_ENV=test`, the module switches to in-memory automatically so the test suite needs no Redis.
+
+### Stack
+
+| Piece | Purpose |
+|---|---|
+| `cache-manager` v7 + `@nestjs/cache-manager` v3 | NestJS-friendly wrapper around Keyv |
+| `@keyv/redis` | Redis store (connects to `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`) |
+| `CacheService` | App wrapper exposing `wrap`, `bumpNamespace`, `buildKey` (`src/shared/cache/cache.service.ts`) |
+| `@Cacheable({ namespace, key, ttlMs })` | Method decorator on repository reads |
+| `@InvalidateCache(...namespaces)` | Method decorator on repository writes — bumps namespace versions |
+
+### Where it's applied
+
+Caching is on the **repository layer** (not use cases), so any caller — use case, seed script, future feature — gets it for free.
+
+| Repo method | Namespace | TTL | Why |
+|---|---|---|---|
+| `permissions.findAll` | `permissions` | 24h | Static seed data; rarely changes |
+| `roles.findManyByWorkspace` | `roles` | 1h | Read on RBAC list endpoints |
+| `users.findById` / `findByIdInWorkspace` | `users` | 15min | Hot on user CRUD |
+| `members.findByUserAndWorkspace` / `findSuperAdminMembership` | `workspace_members` | 1min | **`WorkspaceGuard` runs on every authenticated request** with a 3-level JOIN — biggest win |
+
+### Invalidation strategy: namespace + version bump
+
+Each cache key embeds a version stamp for its namespace: `users:v3:id:abc`. Mutations bump the version (`users:v4:...`) — old keys become orphaned and expire by TTL. No need to enumerate or pattern-delete keys.
+
+| Mutation | Namespaces bumped |
+|---|---|
+| `roles.create` | `roles` |
+| `roles.update` / `roles.delete` | `roles`, `workspace_members` |
+| `users.update` | `users` |
+| `users.softDelete` | `users`, `workspace_members` |
+| `members.create` / `updateRole` / `delete` | `workspace_members` |
+
+### Adding cache to a new repo method
+
+```ts
+import { Cacheable } from '@shared/cache/cacheable.decorator';
+import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
+import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
+
+@Injectable()
+export class PrismaWidgetsRepository extends WidgetsRepository {
+  @Cacheable({
+    namespace: CACHE_NS.widgets,             // add to cache.constants.ts
+    key: (id: string) => `id:${id}`,
+    ttlMs: CACHE_TTL.fifteenMinutes,
+  })
+  findById(id: string) { ... }
+
+  @InvalidateCache(CACHE_NS.widgets)
+  update(id: string, data: ...) { ... }
+}
+```
+
+> **Heads-up on `tsconfig`:** when a method has a decorator, types referenced in its signature must be imported with `import type` (TS error `TS1272` under `isolatedModules + emitDecoratorMetadata`). Split your import statement when needed.
+
+Null results are intentionally **not cached** as cache hits — `CacheService.wrap` re-invokes the function when the stored value is `null`, so a "user not found" lookup doesn't poison the cache.
 
 ## Error envelope
 

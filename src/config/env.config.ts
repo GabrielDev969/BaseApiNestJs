@@ -53,6 +53,18 @@ const envSchema = z
     THROTTLE_TTL: z.coerce.number().default(60),
     THROTTLE_LIMIT: z.coerce.number().default(100),
 
+    METRICS_ALLOWED_IPS: z
+      .string()
+      .optional()
+      .transform((val) =>
+        val
+          ? val
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : undefined,
+      ),
+
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .optional(),

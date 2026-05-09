@@ -2,6 +2,7 @@ import { UsersRepository } from '@modules/users/repositories/users.repository.in
 import { CreateWorkspaceUseCase } from '@modules/workspaces/use-cases/create-workspace.use-case';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { CryptoUtil } from '@shared/utils/crypto.util';
+import { MetricsService } from '@shared/metrics/metrics.service';
 
 interface RegisterInput {
   email: string;
@@ -14,11 +15,15 @@ export class RegisterUseCase {
   constructor(
     private users: UsersRepository,
     private createWorkspace: CreateWorkspaceUseCase,
+    private metrics: MetricsService,
   ) {}
 
   async execute(input: RegisterInput) {
     const existing = await this.users.findByEmail(input.email);
-    if (existing) throw new ConflictException('Email already registered');
+    if (existing) {
+      this.metrics.incRegister('conflict');
+      throw new ConflictException('Email already registered');
+    }
 
     const passwordHash = await CryptoUtil.hashPassword(input.password);
     const user = await this.users.create({
@@ -33,6 +38,7 @@ export class RegisterUseCase {
       isPersonal: true,
     });
 
+    this.metrics.incRegister('success');
     return { id: user.id, email: user.email, name: user.name };
   }
 }
