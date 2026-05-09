@@ -13,6 +13,11 @@ import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { RequirePermissions } from '@shared/decorators/require-permissions.decorator';
 import { PERMISSIONS } from '@modules/rbac/constants/permissions';
 import { PaginatedResponseDto } from '@shared/dto/paginated-response.dto';
+import {
+  ApiAuthErrors,
+  ApiServerError,
+  ApiValidationError,
+} from '@shared/swagger/api-errors.decorator';
 import type { WorkspaceContext } from '@shared/types/workspace-context.type';
 import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator';
 
@@ -27,6 +32,9 @@ export class AuditController {
   @RequirePermissions(PERMISSIONS.AUDIT.READ)
   @ApiOperation({ summary: 'List audit logs in the workspace' })
   @ApiResponse({ status: 200, type: PaginatedResponseDto<AuditLogResponseDto> })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiServerError()
   async list(
     @CurrentWorkspace() workspace: WorkspaceContext,
     @Query() query: ListAuditLogsQueryDto,

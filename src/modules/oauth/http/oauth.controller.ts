@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -22,6 +23,13 @@ import type { Request } from 'express';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
+import {
+  ApiAuthErrors,
+  ApiNotFoundError,
+  ApiRateLimitError,
+  ApiServerError,
+  ApiValidationError,
+} from '@shared/swagger/api-errors.decorator';
 import type { AccessTokenPayload } from '@modules/auth/services/token.service';
 import { isOAuthProviderName, OAuthProviderName } from '../constants/providers';
 import { StartOAuthUseCase } from '../use-cases/start-oauth.use-case';
@@ -52,8 +60,15 @@ export class OAuthController {
   @Get(':provider/login')
   @RateLimit('oauthStart')
   @ApiOperation({ summary: 'Begin OAuth login flow' })
-  @ApiParam({ name: 'provider', enum: ['google', 'github'] })
+  @ApiParam({
+    name: 'provider',
+    enum: ['google', 'github'],
+    description: 'OAuth provider name',
+  })
   @ApiResponse({ status: 200, description: 'Authorization URL to redirect to' })
+  @ApiValidationError()
+  @ApiRateLimitError()
+  @ApiServerError()
   loginStart(
     @Param('provider') providerParam: string,
     @Query() query: StartOAuthDto,
@@ -70,7 +85,17 @@ export class OAuthController {
   @RateLimit('oauthStart')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Begin OAuth account linking flow' })
-  @ApiParam({ name: 'provider', enum: ['google', 'github'] })
+  @ApiParam({
+    name: 'provider',
+    enum: ['google', 'github'],
+    description: 'OAuth provider name',
+  })
+  @ApiBody({ type: StartOAuthDto })
+  @ApiResponse({ status: 200, description: 'Authorization URL to redirect to' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiRateLimitError()
+  @ApiServerError()
   linkStart(
     @Param('provider') providerParam: string,
     @Body() body: StartOAuthDto,
@@ -89,7 +114,16 @@ export class OAuthController {
   @RateLimit('oauthCallback')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete OAuth flow with code+state' })
-  @ApiParam({ name: 'provider', enum: ['google', 'github'] })
+  @ApiParam({
+    name: 'provider',
+    enum: ['google', 'github'],
+    description: 'OAuth provider name',
+  })
+  @ApiBody({ type: OAuthCallbackDto })
+  @ApiResponse({ status: 200, description: 'Tokens issued or account linked' })
+  @ApiValidationError()
+  @ApiRateLimitError()
+  @ApiServerError()
   callback(
     @Param('provider') providerParam: string,
     @Body() body: OAuthCallbackDto,
@@ -107,6 +141,9 @@ export class OAuthController {
   @ApiBearerAuth()
   @Get('accounts')
   @ApiOperation({ summary: "List the current user's linked OAuth accounts" })
+  @ApiResponse({ status: 200, description: 'Linked OAuth accounts' })
+  @ApiAuthErrors()
+  @ApiServerError()
   list(@CurrentUser() user: AccessTokenPayload) {
     return this.listAccounts.execute(user.id);
   }
@@ -115,6 +152,11 @@ export class OAuthController {
   @Delete('accounts/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unlink an OAuth account' })
+  @ApiParam({ name: 'id', description: 'Linked OAuth account id' })
+  @ApiResponse({ status: 204, description: 'Account unlinked' })
+  @ApiAuthErrors()
+  @ApiNotFoundError('OAuth account')
+  @ApiServerError()
   async unlink(
     @CurrentUser() user: AccessTokenPayload,
     @Param('id') id: string,

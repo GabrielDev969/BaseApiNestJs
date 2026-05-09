@@ -5,7 +5,7 @@ export class InvitationResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'newmember@company.com' })
   email: string;
 
   @ApiProperty({ format: 'uuid' })
@@ -20,16 +20,21 @@ export class InvitationResponseDto {
   @ApiProperty({
     description: 'Acceptance token. Only returned on creation.',
     required: false,
+    example: 'inv_8f3a91c2-...',
   })
   token?: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-16T12:34:56.789Z' })
   expiresAt: Date;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+    example: null,
+    description: 'When the invitation was accepted; null if pending',
+  })
   acceptedAt: Date | null;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-09T12:34:56.789Z' })
   createdAt: Date;
 }
 

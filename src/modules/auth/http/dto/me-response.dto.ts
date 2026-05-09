@@ -1,33 +1,36 @@
 import { ApiProperty } from '@nestjs/swagger';
 
 export class MeWorkspaceDto {
-  @ApiProperty()
+  @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'Acme Inc.' })
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'acme-inc' })
   slug: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: false })
   isPersonal: boolean;
 }
 
 export class MeResponseDto {
-  @ApiProperty()
+  @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'user@company.com' })
   email: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'John Doe' })
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: false })
   twoFactorEnabled: boolean;
 
-  @ApiProperty({ description: 'True if member of the __admin__ workspace' })
+  @ApiProperty({
+    example: false,
+    description: 'True if member of the __admin__ workspace',
+  })
   isSuperAdmin: boolean;
 
   @ApiProperty({ type: [MeWorkspaceDto] })

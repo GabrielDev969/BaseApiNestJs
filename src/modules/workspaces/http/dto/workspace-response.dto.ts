@@ -5,22 +5,28 @@ export class WorkspaceResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'Acme Inc.' })
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 'acme-inc',
+    description: 'URL-safe identifier; unique across workspaces',
+  })
   slug: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: false,
+    description: "True for the user's auto-provisioned personal workspace",
+  })
   isPersonal: boolean;
 
   @ApiProperty({ format: 'uuid' })
   ownerId: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-09T12:34:56.789Z' })
   createdAt: Date;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-09T12:34:56.789Z' })
   updatedAt: Date;
 }
 

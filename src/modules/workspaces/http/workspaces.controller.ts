@@ -15,6 +15,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator';
@@ -22,6 +23,12 @@ import { RequirePermissions } from '@shared/decorators/require-permissions.decor
 import { Audit } from '@shared/decorators/audit.decorator';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
+import {
+  ApiAuthErrors,
+  ApiNotFoundError,
+  ApiServerError,
+  ApiValidationError,
+} from '@shared/swagger/api-errors.decorator';
 import type { AuthenticatedUser } from '@shared/types/authenticated-user.type';
 import type { WorkspaceContext } from '@shared/types/workspace-context.type';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -45,6 +52,8 @@ export class WorkspacesController {
   @Get()
   @ApiOperation({ summary: 'List workspaces the current user belongs to' })
   @ApiResponse({ status: 200, type: [WorkspaceResponseDto] })
+  @ApiAuthErrors()
+  @ApiServerError()
   async list(
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<WorkspaceResponseDto[]> {
@@ -57,8 +66,9 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Get a workspace by ID' })
   @ApiParam({ name: 'workspaceId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, type: WorkspaceResponseDto })
-  @ApiResponse({ status: 403, description: 'Not a member of this workspace' })
-  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  @ApiAuthErrors()
+  @ApiNotFoundError('Workspace')
+  @ApiServerError()
   async findOne(
     @CurrentWorkspace() workspace: WorkspaceContext,
   ): Promise<WorkspaceResponseDto> {
@@ -71,12 +81,12 @@ export class WorkspacesController {
   @Audit({ action: 'workspace.updated', resource: 'Workspace' })
   @ApiOperation({ summary: 'Update a workspace' })
   @ApiParam({ name: 'workspaceId', type: 'string', format: 'uuid' })
+  @ApiBody({ type: UpdateWorkspaceDto })
   @ApiResponse({ status: 200, type: WorkspaceResponseDto })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden (admin workspace or missing permission)',
-  })
-  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiNotFoundError('Workspace')
+  @ApiServerError()
   async update(
     @Body() dto: UpdateWorkspaceDto,
     @CurrentWorkspace() workspace: WorkspaceContext,
@@ -92,11 +102,9 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Soft delete a workspace' })
   @ApiParam({ name: 'workspaceId', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'Workspace deleted' })
-  @ApiResponse({
-    status: 403,
-    description: 'Cannot delete admin or personal workspace',
-  })
-  @ApiResponse({ status: 404, description: 'Workspace not found' })
+  @ApiAuthErrors()
+  @ApiNotFoundError('Workspace')
+  @ApiServerError()
   async remove(@CurrentWorkspace() workspace: WorkspaceContext): Promise<void> {
     await this.deleteWorkspace.execute(workspace.id);
   }

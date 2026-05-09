@@ -4,7 +4,10 @@ export class AuditLogResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Actor; null for system-initiated actions',
+  })
   userId: string | null;
 
   @ApiProperty({ example: 'user.created' })
@@ -16,15 +19,18 @@ export class AuditLogResponseDto {
   @ApiPropertyOptional({ format: 'uuid' })
   resourceId: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Action-specific payload; shape varies by action',
+    example: { reason: 'invited via dashboard' },
+  })
   metadata: Record<string, any> | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: '203.0.113.42' })
   ipAddress: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ example: 'Mozilla/5.0 ...' })
   userAgent: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-09T12:34:56.789Z' })
   createdAt: Date;
 }

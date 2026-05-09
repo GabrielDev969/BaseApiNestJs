@@ -7,6 +7,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Public } from '@shared/decorators/public.decorator';
 import { SkipThrottle } from '@nestjs/throttler';
+import { ApiServerError } from '@shared/swagger/api-errors.decorator';
 import { PrismaHealthIndicator } from '../indicators/prisma.indicator';
 
 @ApiTags('Health')
@@ -23,6 +24,7 @@ export class HealthController {
   @HealthCheck()
   @ApiOperation({ summary: 'Liveness probe — process is alive' })
   @ApiResponse({ status: 200, description: 'Application is running' })
+  @ApiServerError()
   liveness(): Promise<HealthCheckResult> {
     return this.health.check([]);
   }

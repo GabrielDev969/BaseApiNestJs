@@ -19,12 +19,20 @@ import {
   ApiResponse,
   ApiHeader,
   ApiParam,
+  ApiBody,
 } from '@nestjs/swagger';
 import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator';
 import { RequirePermissions } from '@shared/decorators/require-permissions.decorator';
 import { Audit } from '@shared/decorators/audit.decorator';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
+import {
+  ApiAuthErrors,
+  ApiConflictError,
+  ApiNotFoundError,
+  ApiServerError,
+  ApiValidationError,
+} from '@shared/swagger/api-errors.decorator';
 import type { WorkspaceContext } from '@shared/types/workspace-context.type';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -58,6 +66,8 @@ export class RbacController {
   @RequirePermissions(PERMISSIONS.ROLE.READ)
   @ApiOperation({ summary: 'List roles in the workspace' })
   @ApiResponse({ status: 200, type: [RoleResponseDto] })
+  @ApiAuthErrors()
+  @ApiServerError()
   async list(
     @CurrentWorkspace() workspace: WorkspaceContext,
   ): Promise<RoleResponseDto[]> {
@@ -69,8 +79,12 @@ export class RbacController {
   @RequirePermissions(PERMISSIONS.ROLE.CREATE)
   @Audit({ action: 'role.created', resource: 'Role' })
   @ApiOperation({ summary: 'Create a role in the workspace' })
+  @ApiBody({ type: CreateRoleDto })
   @ApiResponse({ status: 201, type: RoleResponseDto })
-  @ApiResponse({ status: 409, description: 'Role name already in use' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiConflictError('Role name already in use')
+  @ApiServerError()
   async create(
     @Body() dto: CreateRoleDto,
     @CurrentWorkspace() workspace: WorkspaceContext,
@@ -88,9 +102,12 @@ export class RbacController {
   @Audit({ action: 'role.updated', resource: 'Role' })
   @ApiOperation({ summary: 'Update a role' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiBody({ type: UpdateRoleDto })
   @ApiResponse({ status: 200, type: RoleResponseDto })
-  @ApiResponse({ status: 403, description: 'System roles cannot be modified' })
-  @ApiResponse({ status: 404, description: 'Role not found' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiNotFoundError('Role')
+  @ApiServerError()
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRoleDto,
@@ -110,8 +127,10 @@ export class RbacController {
   @ApiOperation({ summary: 'Delete a role' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'Role deleted' })
-  @ApiResponse({ status: 403, description: 'System roles cannot be deleted' })
-  @ApiResponse({ status: 409, description: 'Role is in use by members' })
+  @ApiAuthErrors()
+  @ApiNotFoundError('Role')
+  @ApiConflictError('Role is in use by members')
+  @ApiServerError()
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: WorkspaceContext,
@@ -125,8 +144,12 @@ export class RbacController {
   @Audit({ action: 'role.permission_assigned', resource: 'Role' })
   @ApiOperation({ summary: 'Assign a permission to a role' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiBody({ type: AssignPermissionDto })
   @ApiResponse({ status: 200, type: RoleResponseDto })
-  @ApiResponse({ status: 404, description: 'Role or permission not found' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiNotFoundError('Role or permission')
+  @ApiServerError()
   async addPermission(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignPermissionDto,

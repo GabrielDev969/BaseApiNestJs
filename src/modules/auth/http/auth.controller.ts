@@ -12,6 +12,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiBody,
 } from '@nestjs/swagger';
 import { RegisterUseCase } from '../use-cases/register.use-case';
 import { LoginUseCase } from '../use-cases/login.use-case';
@@ -31,6 +32,14 @@ import { VerifyTwoFactorDto } from './dto/verify-2fa.dto';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
+import {
+  ApiAuthErrors,
+  ApiConflictError,
+  ApiRateLimitError,
+  ApiServerError,
+  ApiValidationError,
+} from '@shared/swagger/api-errors.decorator';
+import { ErrorResponseDto } from '@shared/dto/error-response.dto';
 import type { AccessTokenPayload } from '../services/token.service';
 import type { Request } from 'express';
 
@@ -53,8 +62,12 @@ export class AuthController {
   @RateLimit('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User created successfully' })
-  @ApiResponse({ status: 409, description: 'Email already registered' })
+  @ApiValidationError()
+  @ApiConflictError('Email already registered')
+  @ApiRateLimitError()
+  @ApiServerError()
   registerEndpoint(@Body() dto: RegisterDto) {
     return this.register.execute(dto);
   }
@@ -64,11 +77,19 @@ export class AuthController {
   @RateLimit('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate user' })
+  @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: 200,
-    description: 'Login successful or 2FA challenge',
+    description: 'Login successful or 2FA challenge issued',
   })
-  @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiValidationError()
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid credentials',
+    type: ErrorResponseDto,
+  })
+  @ApiRateLimitError()
+  @ApiServerError()
   loginEndpoint(@Body() dto: LoginDto, @Req() req: Request) {
     return this.login.execute({
       ...dto,
@@ -82,8 +103,16 @@ export class AuthController {
   @RateLimit('refreshToken')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate refresh token' })
-  @ApiResponse({ status: 200, description: 'New tokens issued' })
-  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
+  @ApiBody({ type: RefreshDto })
+  @ApiResponse({ status: 200, description: 'New access and refresh tokens' })
+  @ApiValidationError()
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired refresh token',
+    type: ErrorResponseDto,
+  })
+  @ApiRateLimitError()
+  @ApiServerError()
   refreshEndpoint(@Body() dto: RefreshDto) {
     return this.refresh.execute(dto.refreshToken);
   }
@@ -92,6 +121,8 @@ export class AuthController {
   @Get('me')
   @ApiOperation({ summary: 'Current user profile, workspaces and admin flag' })
   @ApiResponse({ status: 200, type: MeResponseDto })
+  @ApiAuthErrors()
+  @ApiServerError()
   meEndpoint(@CurrentUser() user: AccessTokenPayload) {
     return this.getMe.execute(user.id);
   }
@@ -101,6 +132,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate a 2FA secret (call before enable)' })
   @ApiResponse({ status: 200, description: 'Returns secret and otpauth URL' })
+  @ApiAuthErrors()
+  @ApiServerError()
   setup2faEndpoint(@CurrentUser() user: AccessTokenPayload) {
     return this.setup2fa.execute(user.id);
   }
@@ -110,11 +143,15 @@ export class AuthController {
   @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Activate 2FA after verifying first TOTP code' })
+  @ApiBody({ type: EnableTwoFactorDto })
   @ApiResponse({
     status: 200,
     description: 'Returns recovery codes (shown once)',
   })
-  @ApiResponse({ status: 401, description: 'Invalid TOTP code' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiRateLimitError()
+  @ApiServerError()
   enable2faEndpoint(
     @CurrentUser() user: AccessTokenPayload,
     @Body() dto: EnableTwoFactorDto,
@@ -127,8 +164,12 @@ export class AuthController {
   @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Disable 2FA (requires password and current TOTP)' })
+  @ApiBody({ type: DisableTwoFactorDto })
   @ApiResponse({ status: 204, description: '2FA disabled' })
-  @ApiResponse({ status: 401, description: 'Invalid password or code' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiRateLimitError()
+  @ApiServerError()
   async disable2faEndpoint(
     @CurrentUser() user: AccessTokenPayload,
     @Body() dto: DisableTwoFactorDto,
@@ -141,8 +182,16 @@ export class AuthController {
   @RateLimit('twoFactorVerify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Complete login by verifying 2FA challenge' })
+  @ApiBody({ type: VerifyTwoFactorDto })
   @ApiResponse({ status: 200, description: 'Tokens issued' })
-  @ApiResponse({ status: 401, description: 'Invalid challenge or code' })
+  @ApiValidationError()
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid challenge or code',
+    type: ErrorResponseDto,
+  })
+  @ApiRateLimitError()
+  @ApiServerError()
   verify2faEndpoint(@Body() dto: VerifyTwoFactorDto, @Req() req: Request) {
     return this.verify2fa.execute({
       challenge: dto.challenge,

@@ -2,13 +2,16 @@ import { ApiProperty } from '@nestjs/swagger';
 import { RoleWithPermissions } from '../../repositories/roles.repository.interface';
 
 export class RolePermissionDto {
-  @ApiProperty()
+  @ApiProperty({ example: 'user:delete' })
   key: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+    example: 'Allow deleting users in the workspace',
+  })
   description: string | null;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'user' })
   category: string;
 }
 
@@ -16,22 +19,26 @@ export class RoleResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: 'Admin' })
   name: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ nullable: true, example: 'Workspace administrators' })
   description: string | null;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: false,
+    description:
+      'System roles (Owner, Admin, Member) cannot be modified or deleted',
+  })
   isSystem: boolean;
 
   @ApiProperty({ type: [RolePermissionDto] })
   permissions: RolePermissionDto[];
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-09T12:34:56.789Z' })
   createdAt: Date;
 
-  @ApiProperty()
+  @ApiProperty({ example: '2026-05-09T12:34:56.789Z' })
   updatedAt: Date;
 }
 

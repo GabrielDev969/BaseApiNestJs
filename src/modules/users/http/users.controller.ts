@@ -20,6 +20,8 @@ import {
   ApiResponse,
   ApiHeader,
   ApiParam,
+  ApiBody,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator';
@@ -27,6 +29,13 @@ import { RequirePermissions } from '@shared/decorators/require-permissions.decor
 import { PaginatedResponseDto } from '@shared/dto/paginated-response.dto';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
+import {
+  ApiAuthErrors,
+  ApiConflictError,
+  ApiNotFoundError,
+  ApiServerError,
+  ApiValidationError,
+} from '@shared/swagger/api-errors.decorator';
 import type { AuthenticatedUser } from '@shared/types/authenticated-user.type';
 import type { WorkspaceContext } from '@shared/types/workspace-context.type';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
@@ -61,7 +70,18 @@ export class UsersController {
   @Get()
   @RequirePermissions(PERMISSIONS.USER.READ)
   @ApiOperation({ summary: 'List users in the workspace' })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Filter by name or email (substring, case-insensitive)',
+  })
   @ApiResponse({ status: 200, type: PaginatedResponseDto<UserResponseDto> })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiServerError()
   async list(
     @CurrentWorkspace() workspace: WorkspaceContext,
     @Query() query: ListUsersQueryDto,
@@ -79,7 +99,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Get a user by ID' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 200, type: UserResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiAuthErrors()
+  @ApiNotFoundError('User')
+  @ApiServerError()
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: WorkspaceContext,
@@ -92,8 +114,12 @@ export class UsersController {
   @RequirePermissions(PERMISSIONS.USER.CREATE)
   @Audit({ action: 'user.created', resource: 'User' })
   @ApiOperation({ summary: 'Create a user in the workspace' })
+  @ApiBody({ type: CreateUserDto })
   @ApiResponse({ status: 201, type: UserResponseDto })
-  @ApiResponse({ status: 409, description: 'Email already in use' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiConflictError('Email already in use')
+  @ApiServerError()
   async create(
     @Body() dto: CreateUserDto,
     @CurrentWorkspace() workspace: WorkspaceContext,
@@ -111,8 +137,12 @@ export class UsersController {
   @Audit({ action: 'user.updated', resource: 'User' })
   @ApiOperation({ summary: 'Update a user' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
+  @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ status: 200, type: UserResponseDto })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiValidationError()
+  @ApiAuthErrors()
+  @ApiNotFoundError('User')
+  @ApiServerError()
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
@@ -132,7 +162,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete a user (soft delete)' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'User deleted successfully' })
-  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiAuthErrors()
+  @ApiNotFoundError('User')
+  @ApiServerError()
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentWorkspace() workspace: WorkspaceContext,
