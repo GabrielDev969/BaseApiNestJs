@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import {
-  RolesRepository,
+import { RolesRepository } from './roles.repository.interface';
+import type {
   CreateRoleData,
   UpdateRoleData,
   RoleWithPermissions,
@@ -13,6 +13,9 @@ import {
   Permission as PrismaPermission,
   Prisma,
 } from '@prisma/client';
+import { Cacheable } from '@shared/cache/cacheable.decorator';
+import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
+import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
 
 type PrismaRoleWithRelations = Prisma.RoleGetPayload<{
   include: { permissions: { include: { permission: true } } };
@@ -24,6 +27,7 @@ export class PrismaRolesRepository extends RolesRepository {
     super();
   }
 
+  @InvalidateCache(CACHE_NS.roles)
   async create(data: CreateRoleData): Promise<RoleWithPermissions> {
     const perms = await this.prisma.permission.findMany({
       where: { key: { in: data.permissionKeys } },
@@ -73,6 +77,11 @@ export class PrismaRolesRepository extends RolesRepository {
     return role ? this.toRoleWithPermissions(role) : null;
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.roles,
+    key: (workspaceId: string) => `workspace:${workspaceId}`,
+    ttlMs: CACHE_TTL.oneHour,
+  })
   async findManyByWorkspace(
     workspaceId: string,
   ): Promise<RoleWithPermissions[]> {
@@ -94,6 +103,7 @@ export class PrismaRolesRepository extends RolesRepository {
     return role ? this.toRole(role) : null;
   }
 
+  @InvalidateCache(CACHE_NS.roles, CACHE_NS.workspaceMembers)
   async update(id: string, data: UpdateRoleData): Promise<RoleWithPermissions> {
     return this.prisma.$transaction(async (tx) => {
       // Update fields
@@ -139,6 +149,7 @@ export class PrismaRolesRepository extends RolesRepository {
     });
   }
 
+  @InvalidateCache(CACHE_NS.roles, CACHE_NS.workspaceMembers)
   async delete(id: string): Promise<void> {
     await this.prisma.role.delete({ where: { id } });
   }

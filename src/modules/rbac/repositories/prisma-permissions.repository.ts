@@ -3,6 +3,8 @@ import { PermissionsRepository } from './permissions.repository.interface';
 import { Permission } from '../entities/permission.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { Permission as PermissionPrisma } from '@prisma/client';
+import { Cacheable } from '@shared/cache/cacheable.decorator';
+import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
 
 @Injectable()
 export class PrismaPermissionsRepository extends PermissionsRepository {
@@ -10,6 +12,11 @@ export class PrismaPermissionsRepository extends PermissionsRepository {
     super();
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.permissions,
+    key: () => 'all',
+    ttlMs: CACHE_TTL.oneDay,
+  })
   async findAll(): Promise<Permission[]> {
     const perms = await this.prisma.permission.findMany({
       orderBy: [{ category: 'asc' }, { key: 'asc' }],

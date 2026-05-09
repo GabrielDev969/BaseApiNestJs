@@ -8,6 +8,7 @@ import { PrismaModule } from '@shared/database/prisma.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
 import { CustomThrottlerGuard } from '@shared/guards/custom-throttler.guard';
+import { AppCacheModule } from '@shared/cache/cache.module';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
 import { PerformanceInterceptor } from '@shared/interceptors/performance.interceptor';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
@@ -38,6 +39,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
       skipIf: () => env.NODE_ENV === 'test',
     }),
     PrismaModule,
+    AppCacheModule,
     AuthModule,
     UsersModule,
     WorkspacesModule,

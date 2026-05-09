@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import {
-  WorkspaceMembersRepository,
+import { WorkspaceMembersRepository } from './workspace-members.repository.interface';
+import type {
   CreateWorkspaceMemberData,
   WorkspaceMemberWithRelations,
 } from './workspace-members.repository.interface';
@@ -8,6 +8,9 @@ import { WorkspaceMember } from '../entities/workspace-member.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { WorkspaceMember as PrismaWorkspaceMember } from '@prisma/client';
 import { ADMIN_WORKSPACE_SLUG } from '@modules/rbac/constants/system';
+import { Cacheable } from '@shared/cache/cacheable.decorator';
+import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
+import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
 
 @Injectable()
 export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository {
@@ -15,6 +18,7 @@ export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository
     super();
   }
 
+  @InvalidateCache(CACHE_NS.workspaceMembers)
   async create(data: CreateWorkspaceMemberData): Promise<WorkspaceMember> {
     const member = await this.prisma.workspaceMember.create({ data });
     return this.toEntity(member);
@@ -27,6 +31,11 @@ export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository
     return member ? this.toEntity(member) : null;
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.workspaceMembers,
+    key: (userId: string, workspaceId: string) => `${userId}:${workspaceId}`,
+    ttlMs: CACHE_TTL.oneMinute,
+  })
   async findByUserAndWorkspace(
     userId: string,
     workspaceId: string,
@@ -55,6 +64,11 @@ export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository
     };
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.workspaceMembers,
+    key: (userId: string) => `superadmin:${userId}`,
+    ttlMs: CACHE_TTL.oneMinute,
+  })
   async findSuperAdminMembership(
     userId: string,
   ): Promise<WorkspaceMemberWithRelations | null> {
@@ -74,6 +88,7 @@ export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository
     return members.map((m) => this.toEntity(m));
   }
 
+  @InvalidateCache(CACHE_NS.workspaceMembers)
   async updateRole(id: string, roleId: string): Promise<WorkspaceMember> {
     const member = await this.prisma.workspaceMember.update({
       where: { id },
@@ -82,6 +97,7 @@ export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository
     return this.toEntity(member);
   }
 
+  @InvalidateCache(CACHE_NS.workspaceMembers)
   async delete(id: string): Promise<void> {
     await this.prisma.workspaceMember.delete({ where: { id } });
   }

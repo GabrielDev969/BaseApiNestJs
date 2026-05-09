@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import {
-  UsersRepository,
+import { UsersRepository } from './users.repository.interface';
+import type {
   CreateUserData,
   FindManyByWorkspaceParams,
   FindManyResult,
@@ -9,6 +9,9 @@ import {
 import { User } from '../entities/user.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { User as PrismaUser } from '@prisma/client';
+import { Cacheable } from '@shared/cache/cacheable.decorator';
+import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
+import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
 
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
@@ -21,6 +24,11 @@ export class PrismaUsersRepository extends UsersRepository {
     return this.toEntity(user);
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.users,
+    key: (id: string) => `id:${id}`,
+    ttlMs: CACHE_TTL.fifteenMinutes,
+  })
   async findById(id: string): Promise<User | null> {
     const user = await this.prisma.user.findFirst({
       where: { id, deletedAt: null },
@@ -35,11 +43,13 @@ export class PrismaUsersRepository extends UsersRepository {
     return user ? this.toEntity(user) : null;
   }
 
+  @InvalidateCache(CACHE_NS.users)
   async update(id: string, data: UpdateUserData): Promise<User> {
     const user = await this.prisma.user.update({ where: { id }, data });
     return this.toEntity(user);
   }
 
+  @InvalidateCache(CACHE_NS.users, CACHE_NS.workspaceMembers)
   async softDelete(id: string): Promise<void> {
     await this.prisma.user.update({
       where: { id },
@@ -47,6 +57,11 @@ export class PrismaUsersRepository extends UsersRepository {
     });
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.users,
+    key: (id: string, workspaceId: string) => `id:${id}:ws:${workspaceId}`,
+    ttlMs: CACHE_TTL.fifteenMinutes,
+  })
   async findByIdInWorkspace(
     id: string,
     workspaceId: string,
