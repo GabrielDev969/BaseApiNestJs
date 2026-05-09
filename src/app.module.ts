@@ -3,10 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { env } from './config/env.config';
 import { loggerConfig } from './config/logger.config';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from '@shared/database/prisma.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
+import { CustomThrottlerGuard } from '@shared/guards/custom-throttler.guard';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
 import { PerformanceInterceptor } from '@shared/interceptors/performance.interceptor';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
@@ -50,8 +51,8 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
   controllers: [],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: CustomThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: PerformanceInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
