@@ -371,3 +371,49 @@ Reset between e2e tests is `TRUNCATE … CASCADE` (see `test/helpers/test-databa
 2. **`e2e`** — runs after `verify`, executes the e2e suite with Testcontainers.
 
 Triggered on PRs and pushes to `main`. Concurrency cancels superseded runs. Node and pnpm versions come from `engines` and `packageManager` in `package.json`.
+
+## Backup & Recovery
+
+### Manual backup
+
+Requires `pg_dump` on `$PATH` and `DATABASE_URL` exported.
+
+```bash
+./scripts/backup-database.sh                                      # writes ./backups/workspace-api_<ts>.dump
+BACKUP_DIR=/var/backups/workspace ./scripts/backup-database.sh    # custom destination
+RETENTION_DAYS=7 ./scripts/backup-database.sh                     # tighter retention
+```
+
+The script writes a Postgres custom-format dump (`-Fc -Z 9`, native gzip-9 compression) and prunes dumps older than `RETENTION_DAYS` (default `30`).
+
+### Automated daily backup
+
+`.github/workflows/backup.yml` runs `scripts/backup-database.sh` every day at 03:00 UTC and uploads the dump as a workflow artifact (90-day retention). To enable:
+
+1. Set repo secret `BACKUP_DATABASE_URL` to the production connection string.
+2. Confirm the workflow is listed under **Actions → Database backup**.
+3. Trigger an on-demand run from the Actions tab to validate end-to-end.
+
+> Artifacts are tied to the GitHub repo and capped at 90-day retention. For longer retention or off-platform DR, mirror them to S3/GCS — out of scope here.
+
+### Restore from backup
+
+```bash
+DATABASE_URL=postgresql://... ./scripts/restore-database.sh ./backups/workspace-api_20260509_030000Z.dump
+```
+
+The script prompts for confirmation (URL is shown with the password masked), runs `pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error`, then validates by running `prisma migrate status` and printing row counts for `User`, `Workspace`, `Role`, `Permission`, `WorkspaceMember`.
+
+### RTO / RPO
+
+- **RTO** (Recovery Time Objective): **1 hour** — fetch artifact, run `restore-database.sh`, smoke-test the API.
+- **RPO** (Recovery Point Objective): **24 hours** — bound by the daily cron. Tighter RPO requires WAL archiving (out of scope).
+
+### Disaster recovery checklist
+
+1. Download the latest GitHub Actions backup artifact and verify it with `pg_restore --list <file.dump>`.
+2. Provision a new Postgres instance and export `DATABASE_URL`.
+3. Run `./scripts/restore-database.sh <file.dump>`.
+4. Confirm `prisma migrate status` shows no pending migrations and row counts match expectations.
+5. Smoke-test the API: register, login, list workspaces.
+6. Rotate `JWT_*_SECRET` and `ENCRYPTION_KEY` only if the originals may have leaked — otherwise keep them so existing sessions and encrypted 2FA secrets remain valid.
