@@ -2,7 +2,7 @@
 
 Multi-tenant NestJS API with workspaces, RBAC, JWT auth, 2FA, OAuth (Google + GitHub), audit logging, and a global super admin.
 
-- **Stack**: NestJS 11, Prisma 7 + PostgreSQL, Passport JWT, Argon2id, Zod, Pino, Helmet, Swagger, Jest + Testcontainers.
+- **Stack**: NestJS 11, Prisma 7 + PostgreSQL, Passport JWT, Argon2id, Zod. Redis for cache/throttler/queue. BullMQ for background jobs. Resend (or log) for email. prom-client + Prometheus + Alertmanager + Grafana for observability. Pino, Helmet, Swagger, Jest + Testcontainers.
 - **Layout**: each domain module is split into `http/` (controllers, DTOs), `use-cases/`, `services/`, `repositories/`, `entities/`. Repos are abstract classes injected by type — no `@Inject` / Symbol tokens.
 - **Conventions**: see [CLAUDE.md](./CLAUDE.md) for the non-negotiable rules (English-only code, abstract-class repos, soft delete, etc.).
 
@@ -25,7 +25,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # JWT
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"   # ENCRYPTION_KEY (must be 32 bytes hex = 64 chars)
 # Edit .env, paste the values, set SUPER_ADMIN_*
 
-docker compose up -d                  # Postgres + Redis
+docker compose up -d                  # Postgres + Redis + Prometheus + Alertmanager + Grafana
 pnpm exec prisma migrate dev          # apply schema
 pnpm exec prisma db seed              # seed permissions + super admin
 pnpm run start:dev                    # http://localhost:3000
@@ -36,6 +36,12 @@ Once the app is up:
 - **API base**: `http://localhost:3000/api/v1`
 - **Swagger UI** (dev only): `http://localhost:3000/docs`
 - **Health**: `http://localhost:3000/health` and `/health/ready`
+- **Metrics**: `http://localhost:3000/metrics` (Prometheus exposition format)
+- **Prometheus UI**: `http://localhost:9090`
+- **Alertmanager UI**: `http://localhost:9093` (requires `ALERT_DISCORD_WEBHOOK_URL` set)
+- **Grafana**: `http://localhost:3001` — login `admin` / `admin` (or `GRAFANA_ADMIN_PASSWORD`)
+
+> Only `postgres` + `redis` are strictly required for the API to boot. The observability stack (Prometheus, Alertmanager, Grafana) is optional in dev — start it on demand with `docker compose up -d prometheus grafana`.
 
 ## Environment
 
@@ -58,6 +64,13 @@ All variables are validated by Zod at boot (`src/config/env.config.ts`). The app
 | `THROTTLE_TTL` / `THROTTLE_LIMIT` | – | global rate limit, default 60s / 100 req |
 | `METRICS_ALLOWED_IPS` | optional | CSV of IPs allowed to scrape `/metrics`. Empty = open (dev). Set to loopback + Prometheus scraper IP in prod. |
 | `GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD` | optional | Used by the docker-compose `grafana` service. Default `admin`/`admin` — change for shared environments. |
+| `TRUST_PROXY` | optional | `false` (default), `true` (trust all), or a number of hops (`1`/`2`...). **Required behind a proxy** so `req.ip` is the real client. |
+| `DB_POOL_MAX` / `DB_POOL_IDLE_MS` / `DB_POOL_CONN_TIMEOUT_MS` | – | Postgres pool tuning. Defaults `10` / `30000` / `50000`. |
+| `EMAIL_PROVIDER` | – | `resend` or `log` (default). `log` only writes to the logger — useful in dev. |
+| `EMAIL_FROM` | – | "From" address used by the mailer. |
+| `RESEND_API_KEY` | yes if `EMAIL_PROVIDER=resend` | Resend API key. |
+| `APP_PUBLIC_URL` | optional | Public URL used in email links. Falls back to `APP_URL`. |
+| `ALERT_DISCORD_WEBHOOK_URL` | optional | Discord webhook the Alertmanager service routes to. Required if you run the `alertmanager` container. |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` / `SUPER_ADMIN_NAME` | yes (seed) | provisioned by `prisma db seed` |
 | `CORS_ORIGINS` | optional | comma-separated; defaults to `*` |
 
@@ -94,6 +107,8 @@ src/
     database/             # PrismaService (instruments query duration metric)
     cache/                # AppCacheModule, CacheService, @Cacheable, @InvalidateCache (Redis)
     metrics/              # MetricsModule, MetricsService, MetricsInterceptor, /metrics controller
+    queues/               # QueuesModule, queue-names; BullMQ on the shared Redis
+    mailer/               # MailerService + Resend/Log impls, EmailDispatcher, EmailProcessor, templates
     decorators/           # @Public, @CurrentUser, @CurrentWorkspace, @RequirePermissions, @Audit, @RateLimit
     filters/              # AllExceptionsFilter (normalized error envelope)
     guards/               # JwtAuthGuard (global), CustomThrottlerGuard (global), WorkspaceGuard, PermissionsGuard
@@ -101,6 +116,8 @@ src/
     pipes/ utils/ types/
 infra/
   prometheus/prometheus.yml
+  prometheus/rules/       # SLO alert rules
+  alertmanager/           # alertmanager.yml + Discord entrypoint
   grafana/provisioning/   # auto-provisioned datasource + dashboards
   grafana/dashboards/     # JSON dashboards (committed)
 test/
@@ -123,14 +140,20 @@ Auth model:
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/auth/register` | public | Create user + personal workspace |
-| `POST` | `/auth/login` | public | Returns tokens, or `{ requires2FA, challenge }` |
+| `POST` | `/auth/register` | public | Create user + personal workspace; auto-enqueues a verification email |
+| `POST` | `/auth/login` | public | Returns tokens, or `{ requires2FA, challenge }`. **Throws 403 if email is not verified.** |
 | `POST` | `/auth/refresh` | public | Rotate refresh token |
 | `GET`  | `/auth/me` | bearer | Current user, workspaces, `isSuperAdmin` |
+| `POST` | `/auth/verify-email/request` | bearer | Resend the verification email |
+| `POST` | `/auth/verify-email` | public | Body `{ token }`; marks user verified |
+| `POST` | `/auth/forgot-password` | public | Body `{ email }`; always 204 (no enumeration) |
+| `POST` | `/auth/reset-password` | public | Body `{ token, newPassword }`; revokes all sessions |
 | `POST` | `/auth/2fa/setup` | bearer | Generate TOTP secret + otpauth URL |
 | `POST` | `/auth/2fa/enable` | bearer | Activate 2FA after first valid code; returns 10 recovery codes (shown once) |
 | `POST` | `/auth/2fa/disable` | bearer | Requires password + current TOTP |
 | `POST` | `/auth/2fa/verify` | public | Complete 2FA-required login (TOTP **or** recovery code) |
+
+> See [Email & account lifecycle](#email--account-lifecycle) below for token TTLs, mailer providers, and the email-verified gate.
 
 ### OAuth (`/auth/oauth`)
 
@@ -480,6 +503,86 @@ export class PrismaWidgetsRepository extends WidgetsRepository {
 > **Heads-up on `tsconfig`:** when a method has a decorator, types referenced in its signature must be imported with `import type` (TS error `TS1272` under `isolatedModules + emitDecoratorMetadata`). Split your import statement when needed.
 
 Null results are intentionally **not cached** as cache hits — `CacheService.wrap` re-invokes the function when the stored value is `null`, so a "user not found" lookup doesn't poison the cache.
+
+## Background jobs (BullMQ)
+
+`@nestjs/bullmq` runs on the same Redis instance as the cache and the throttler storage. The `QueuesModule` (`src/shared/queues/queues.module.ts`) is global and registers a default job policy: `attempts: 3`, exponential backoff, `removeOnComplete: { age: 24h, count: 1000 }`, `removeOnFail: { age: 7d }`.
+
+Available queues are listed in `src/shared/queues/queue-names.ts`. Today the only one is `emails`.
+
+To wire a new processor:
+
+```ts
+@Processor(QUEUE.myQueue)
+export class MyProcessor extends WorkerHost {
+  async process(job: Job<MyJobData>): Promise<void> { ... }
+}
+```
+
+Then add it to the providers of a module that imports `QueuesModule`. Use `@InjectQueue(QUEUE.myQueue)` to get a `Queue` instance for enqueuing.
+
+## Email & account lifecycle
+
+The mailer is abstracted by `MailerService` (`src/shared/mailer/mailer.service.ts`), with two implementations:
+
+| `EMAIL_PROVIDER` | Implementation | When to use |
+|---|---|---|
+| `log` (default) | `LogMailerService` | dev/test — writes the email to logs, doesn't send |
+| `resend` | `ResendMailerService` | prod — uses `RESEND_API_KEY` to call Resend's API |
+
+Emails are not sent inline. The use cases call `EmailDispatcher.enqueue(...)`, which adds a `send-email` job to the BullMQ `emails` queue. `EmailProcessor` (`src/shared/mailer/email.processor.ts`) consumes the job and calls the mailer. This means a slow or failing provider never blocks an HTTP request.
+
+Templates are inline TS in `src/shared/mailer/templates.ts` — invitation, email verification, and password reset.
+
+### Email-verified gate
+
+The `User` model has `emailVerifiedAt`. Login throws `403 Forbidden` (`Email not verified.`) if the user has a password and hasn't verified yet. OAuth flows are unaffected (verified externally).
+
+### Endpoints (`/auth`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/auth/verify-email/request` | bearer | Resend the verification email to the current user |
+| `POST` | `/auth/verify-email` | public | Body `{ token }`; marks user verified |
+| `POST` | `/auth/forgot-password` | public | Body `{ email }`; always 204 (no enumeration) |
+| `POST` | `/auth/reset-password` | public | Body `{ token, newPassword }`; revokes all sessions |
+
+`POST /auth/register` automatically enqueues the verify-email message — no manual call needed. Tokens are 32 random bytes (hex), stored as sha256 hashes (`EmailVerifyToken`, `PasswordResetToken`); verify TTL is 24h, reset TTL is 1h. Both have `usedAt` for one-shot enforcement.
+
+## Alerting (Alertmanager → Discord)
+
+`docker-compose.yml` ships an `alertmanager` service alongside Prometheus. Rules live in `infra/prometheus/rules/api-alerts.yml` and define:
+
+| Alert | Severity | Trigger |
+|---|---|---|
+| `HighErrorRate` | page | 5xx rate > 5% for 5m |
+| `ElevatedErrorRate` | warn | 5xx rate > 1% for 10m |
+| `HighLatencyP95` | warn | HTTP P95 > 1s for 10m |
+| `HighDbQueryP95` | warn | DB P95 by op > 500ms for 10m |
+| `HighEventLoopLag` | warn | Node.js event loop P99 > 200ms for 5m |
+| `TargetDown` | page | Prometheus can't scrape `/metrics` for 2m |
+
+Alertmanager (`infra/alertmanager/alertmanager.yml`) routes everything to a Discord webhook. The webhook URL is read from `ALERT_DISCORD_WEBHOOK_URL` at container start (entrypoint script writes it to `/etc/alertmanager/discord-webhook.url`).
+
+To set up:
+
+```bash
+# Get a Discord webhook URL: Server Settings → Integrations → Webhooks → New Webhook
+echo "ALERT_DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/..." >> .env
+docker compose up -d alertmanager prometheus
+open http://localhost:9093  # Alertmanager UI
+```
+
+To validate end-to-end, generate some 5xx by killing the API briefly — Prometheus will fire `TargetDown` after 2m and you should see a Discord post.
+
+## Background-tier reliability
+
+| Concern | How it's handled |
+|---|---|
+| Multi-instance rate limiting | Throttler uses Redis storage (`@nest-lab/throttler-storage-redis`) so all pods share the same counters. |
+| Graceful shutdown | `app.enableShutdownHooks()` in `main.ts`; Prisma + Redis (cache) + BullMQ workers close on SIGTERM. |
+| `req.ip` behind a proxy | Set `TRUST_PROXY=1` (or higher hop count) so rate limit, IP allowlist, and audit logs see the real client. |
+| DB pool tuning | `DB_POOL_MAX` / `DB_POOL_IDLE_MS` / `DB_POOL_CONN_TIMEOUT_MS` in env. |
 
 ## Error envelope
 

@@ -22,6 +22,10 @@ import { SetupTwoFactorUseCase } from '../use-cases/setup-2fa.use-case';
 import { EnableTwoFactorUseCase } from '../use-cases/enable-2fa.use-case';
 import { DisableTwoFactorUseCase } from '../use-cases/disable-2fa.use-case';
 import { VerifyTwoFactorUseCase } from '../use-cases/verify-2fa.use-case';
+import { RequestEmailVerificationUseCase } from '../use-cases/request-email-verification.use-case';
+import { VerifyEmailUseCase } from '../use-cases/verify-email.use-case';
+import { ForgotPasswordUseCase } from '../use-cases/forgot-password.use-case';
+import { ResetPasswordUseCase } from '../use-cases/reset-password.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -29,6 +33,9 @@ import { MeResponseDto } from './dto/me-response.dto';
 import { EnableTwoFactorDto } from './dto/enable-2fa.dto';
 import { DisableTwoFactorDto } from './dto/disable-2fa.dto';
 import { VerifyTwoFactorDto } from './dto/verify-2fa.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
@@ -55,6 +62,10 @@ export class AuthController {
     private enable2fa: EnableTwoFactorUseCase,
     private disable2fa: DisableTwoFactorUseCase,
     private verify2fa: VerifyTwoFactorUseCase,
+    private requestEmailVerification: RequestEmailVerificationUseCase,
+    private verifyEmail: VerifyEmailUseCase,
+    private forgotPassword: ForgotPasswordUseCase,
+    private resetPassword: ResetPasswordUseCase,
   ) {}
 
   @Public()
@@ -198,6 +209,85 @@ export class AuthController {
       code: dto.code,
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip,
+    });
+  }
+
+  @ApiBearerAuth()
+  @Post('verify-email/request')
+  @RateLimit('emailVerifyRequest')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Resend the email verification link' })
+  @ApiResponse({ status: 204, description: 'Verification email queued' })
+  @ApiAuthErrors()
+  @ApiRateLimitError()
+  @ApiServerError()
+  async requestEmailVerificationEndpoint(
+    @CurrentUser() user: AccessTokenPayload,
+  ) {
+    await this.requestEmailVerification.execute(user.id);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @RateLimit('emailVerifyConfirm')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Confirm an email with the token from the link' })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiResponse({ status: 204, description: 'Email verified' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired token',
+    type: ErrorResponseDto,
+  })
+  @ApiValidationError()
+  @ApiRateLimitError()
+  @ApiServerError()
+  async verifyEmailEndpoint(@Body() dto: VerifyEmailDto) {
+    await this.verifyEmail.execute(dto.token);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @RateLimit('forgotPassword')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      'Send a password reset email; always returns 204 (no user enumeration)',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({
+    status: 204,
+    description: 'Reset email queued (if user exists)',
+  })
+  @ApiValidationError()
+  @ApiRateLimitError()
+  @ApiServerError()
+  async forgotPasswordEndpoint(@Body() dto: ForgotPasswordDto) {
+    await this.forgotPassword.execute(dto.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @RateLimit('resetPassword')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary:
+      'Reset password using the token from the email; revokes all sessions',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({ status: 204, description: 'Password reset' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired token',
+    type: ErrorResponseDto,
+  })
+  @ApiValidationError()
+  @ApiRateLimitError()
+  @ApiServerError()
+  async resetPasswordEndpoint(@Body() dto: ResetPasswordDto) {
+    await this.resetPassword.execute({
+      token: dto.token,
+      newPassword: dto.newPassword,
     });
   }
 }

@@ -15,6 +15,14 @@ import { SetupTwoFactorUseCase } from './use-cases/setup-2fa.use-case';
 import { EnableTwoFactorUseCase } from './use-cases/enable-2fa.use-case';
 import { DisableTwoFactorUseCase } from './use-cases/disable-2fa.use-case';
 import { VerifyTwoFactorUseCase } from './use-cases/verify-2fa.use-case';
+import { RequestEmailVerificationUseCase } from './use-cases/request-email-verification.use-case';
+import { VerifyEmailUseCase } from './use-cases/verify-email.use-case';
+import { ForgotPasswordUseCase } from './use-cases/forgot-password.use-case';
+import { ResetPasswordUseCase } from './use-cases/reset-password.use-case';
+import { EmailVerifyTokensRepository } from './repositories/email-verify-tokens.repository.interface';
+import { PrismaEmailVerifyTokensRepository } from './repositories/prisma-email-verify-tokens.repository';
+import { PasswordResetTokensRepository } from './repositories/password-reset-tokens.repository.interface';
+import { PrismaPasswordResetTokensRepository } from './repositories/prisma-password-reset-tokens.repository';
 import { env } from 'src/config/env.config';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 
@@ -41,6 +49,18 @@ import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
     EnableTwoFactorUseCase,
     DisableTwoFactorUseCase,
     VerifyTwoFactorUseCase,
+    RequestEmailVerificationUseCase,
+    VerifyEmailUseCase,
+    ForgotPasswordUseCase,
+    ResetPasswordUseCase,
+    {
+      provide: EmailVerifyTokensRepository,
+      useClass: PrismaEmailVerifyTokensRepository,
+    },
+    {
+      provide: PasswordResetTokensRepository,
+      useClass: PrismaPasswordResetTokensRepository,
+    },
   ],
   exports: [LoginUseCase, TokenService],
 })

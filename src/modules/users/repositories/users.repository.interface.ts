@@ -9,9 +9,11 @@ export interface CreateUserData {
 export interface UpdateUserData {
   email?: string;
   name?: string;
+  passwordHash?: string;
   twoFactorEnabled?: boolean;
   twoFactorSecret?: string | null;
   recoveryCodes?: string | null;
+  emailVerifiedAt?: Date | null;
 }
 
 export interface FindManyByWorkspaceParams {

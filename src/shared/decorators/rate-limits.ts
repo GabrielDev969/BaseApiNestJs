@@ -11,6 +11,10 @@ export const RATE_LIMITS = {
   oauthStart: { limit: 20, ttl: minutes(1) },
   oauthCallback: { limit: 20, ttl: minutes(1) },
   invitationAccept: { limit: 10, ttl: minutes(1) },
+  emailVerifyRequest: { limit: 5, ttl: minutes(15) },
+  emailVerifyConfirm: { limit: 10, ttl: minutes(1) },
+  forgotPassword: { limit: 5, ttl: minutes(15) },
+  resetPassword: { limit: 5, ttl: minutes(15) },
 } as const;
 
 export type RateLimitKey = keyof typeof RATE_LIMITS;

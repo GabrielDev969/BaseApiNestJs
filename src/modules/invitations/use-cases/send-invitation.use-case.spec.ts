@@ -6,12 +6,16 @@ import { UsersRepository } from '@modules/users/repositories/users.repository.in
 import { WorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
 import { User } from '@modules/users/entities/user.entity';
 import { WorkspaceMemberWithRelations } from '@modules/workspaces/repositories/workspace-members.repository.interface';
+import { WorkspacesRepository } from '@modules/workspaces/repositories/workspaces.repository.interface';
+import { EmailDispatcher } from '@shared/mailer/email-dispatcher.service';
 
 describe('SendInvitationUseCase', () => {
   let invitations: jest.Mocked<InvitationsRepository>;
   let roles: jest.Mocked<RolesRepository>;
   let users: jest.Mocked<UsersRepository>;
   let members: jest.Mocked<WorkspaceMembersRepository>;
+  let workspaces: jest.Mocked<WorkspacesRepository>;
+  let emailDispatcher: jest.Mocked<EmailDispatcher>;
   let useCase: SendInvitationUseCase;
 
   beforeEach(() => {
@@ -53,7 +57,20 @@ describe('SendInvitationUseCase', () => {
       delete: jest.fn(),
       countByWorkspace: jest.fn(),
     };
-    useCase = new SendInvitationUseCase(invitations, roles, users, members);
+    workspaces = {
+      findById: jest.fn().mockResolvedValue({ id: 'w1', name: 'Acme' }),
+    } as unknown as jest.Mocked<WorkspacesRepository>;
+    emailDispatcher = {
+      enqueue: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<EmailDispatcher>;
+    useCase = new SendInvitationUseCase(
+      invitations,
+      roles,
+      users,
+      members,
+      workspaces,
+      emailDispatcher,
+    );
   });
 
   const role = {

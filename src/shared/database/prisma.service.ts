@@ -12,9 +12,9 @@ import { MetricsService, DbOperation } from '@shared/metrics/metrics.service';
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 50000,
+  max: env.DB_POOL_MAX,
+  idleTimeoutMillis: env.DB_POOL_IDLE_MS,
+  connectionTimeoutMillis: env.DB_POOL_CONN_TIMEOUT_MS,
 });
 
 const adapter = new PrismaPg(pool);

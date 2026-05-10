@@ -115,6 +115,7 @@ export class PrismaUsersRepository extends UsersRepository {
       twoFactorEnabled: raw.twoFactorEnabled,
       twoFactorSecret: raw.twoFactorSecret,
       recoveryCodes: raw.recoveryCodes,
+      emailVerifiedAt: raw.emailVerifiedAt,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,

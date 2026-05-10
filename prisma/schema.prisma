@@ -12,16 +12,20 @@ model User {
   name         String
   passwordHash String?
 
-  twoFactorSecret  String? 
+  twoFactorSecret  String?
   twoFactorEnabled Boolean @default(false)
   recoveryCodes    String?
 
-  oauthAccounts   OAuthAccount[]
-  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
-  memberships     WorkspaceMember[]
-  sessions        Session[]
-  auditLogs       AuditLog[]
-  invitationsSent Invitation[]      @relation("InvitedBy")
+  emailVerifiedAt DateTime?
+
+  oauthAccounts        OAuthAccount[]
+  ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")
+  memberships          WorkspaceMember[]
+  sessions             Session[]
+  auditLogs            AuditLog[]
+  invitationsSent      Invitation[]           @relation("InvitedBy")
+  emailVerifyTokens    EmailVerifyToken[]
+  passwordResetTokens  PasswordResetToken[]
 
   deletedAt DateTime?
 
@@ -30,6 +34,36 @@ model User {
 
   @@index([email])
   @@index([deletedAt])
+}
+
+model EmailVerifyToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model OAuthAccount {

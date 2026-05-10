@@ -21,10 +21,23 @@ const envSchema = z
       ),
 
     DATABASE_URL: z.string().url(),
+    DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+    DB_POOL_IDLE_MS: z.coerce.number().int().nonnegative().default(30_000),
+    DB_POOL_CONN_TIMEOUT_MS: z.coerce.number().int().positive().default(50_000),
 
     REDIS_HOST: z.string(),
     REDIS_PORT: z.coerce.number().default(6379),
     REDIS_PASSWORD: z.string().optional(),
+
+    TRUST_PROXY: z
+      .string()
+      .optional()
+      .transform((val): boolean | number => {
+        if (!val || val === 'false') return false;
+        if (val === 'true') return true;
+        const n = Number(val);
+        return Number.isInteger(n) && n >= 0 ? n : true;
+      }),
 
     JWT_ACCESS_SECRET: z.string().min(32),
     JWT_REFRESH_SECRET: z.string().min(32),
@@ -65,6 +78,13 @@ const envSchema = z
           : undefined,
       ),
 
+    EMAIL_PROVIDER: z.enum(['resend', 'log']).default('log'),
+    EMAIL_FROM: z.string().default('Workspace API <noreply@example.com>'),
+    RESEND_API_KEY: z.string().optional(),
+    APP_PUBLIC_URL: z.string().url().optional(),
+
+    ALERT_DISCORD_WEBHOOK_URL: z.string().url().optional(),
+
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .optional(),
@@ -101,7 +121,10 @@ const envSchema = z
     {
       message: 'CORS_ORIGINS must be set (non-empty) when NODE_ENV=production',
     },
-  );
+  )
+  .refine((data) => data.EMAIL_PROVIDER !== 'resend' || !!data.RESEND_API_KEY, {
+    message: 'RESEND_API_KEY must be set when EMAIL_PROVIDER=resend',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

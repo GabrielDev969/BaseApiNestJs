@@ -6,6 +6,7 @@ export class User {
   twoFactorEnabled: boolean;
   twoFactorSecret: string | null;
   recoveryCodes: string | null;
+  emailVerifiedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

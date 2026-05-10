@@ -1,0 +1,69 @@
+groups:
+  - name: workspace-api.slo
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total[5m])), 1e-9)
+          > 0.05
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "API error rate above 5%"
+          description: "5xx rate is {{ $value | humanizePercentage }} (>5%) over 5m."
+
+      - alert: ElevatedErrorRate
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_requests_total[5m])), 1e-9)
+          > 0.01
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "API error rate above 1%"
+          description: "5xx rate is {{ $value | humanizePercentage }} (>1%) over 10m."
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))
+          > 1
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "API P95 latency above 1s"
+          description: "P95 = {{ $value }}s for 10m."
+
+      - alert: HighDbQueryP95
+        expr: |
+          histogram_quantile(0.95, sum by (operation, le) (rate(database_query_duration_seconds_bucket[5m])))
+          > 0.5
+        for: 10m
+        labels:
+          severity: warn
+        annotations:
+          summary: "DB query P95 above 500ms ({{ $labels.operation }})"
+          description: "P95 of {{ $labels.operation }} = {{ $value }}s for 10m."
+
+      - alert: HighEventLoopLag
+        expr: nodejs_eventloop_lag_p99_seconds > 0.2
+        for: 5m
+        labels:
+          severity: warn
+        annotations:
+          summary: "Node.js event loop lag P99 above 200ms"
+          description: "Lag P99 = {{ $value }}s — process is starved."
+
+      - alert: TargetDown
+        expr: up{job="workspace-api"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "workspace-api scrape target is down"
+          description: "Prometheus could not scrape the API for 2m."

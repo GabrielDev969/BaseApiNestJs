@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { LoginUseCase } from './login.use-case';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { TokenService } from '../services/token.service';
@@ -66,11 +66,26 @@ describe('LoginUseCase', () => {
     expect(metrics.incLoginAttempt).toHaveBeenCalledWith('failure');
   });
 
+  it('throws Forbidden when email is not verified', async () => {
+    users.findByEmail.mockResolvedValue({
+      id: 'u1',
+      passwordHash,
+      twoFactorEnabled: false,
+      emailVerifiedAt: null,
+    } as User);
+    jest.spyOn(CryptoUtil, 'verifyPassword').mockResolvedValueOnce(true);
+    await expect(
+      useCase.execute({ email: 'a@b.c', password: 'right' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(metrics.incLoginAttempt).toHaveBeenCalledWith('failure');
+  });
+
   it('returns 2FA challenge and counts as requires_2fa when twoFactorEnabled', async () => {
     users.findByEmail.mockResolvedValue({
       id: 'u1',
       passwordHash,
       twoFactorEnabled: true,
+      emailVerifiedAt: new Date(),
     } as User);
     jest.spyOn(CryptoUtil, 'verifyPassword').mockResolvedValueOnce(true);
     const result = await useCase.execute({ email: 'a@b.c', password: 'right' });
@@ -83,6 +98,7 @@ describe('LoginUseCase', () => {
       id: 'u1',
       passwordHash,
       twoFactorEnabled: false,
+      emailVerifiedAt: new Date(),
     } as User);
     jest.spyOn(CryptoUtil, 'verifyPassword').mockResolvedValueOnce(true);
     const result = await useCase.execute({

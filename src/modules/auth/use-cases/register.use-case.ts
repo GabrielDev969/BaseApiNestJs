@@ -3,6 +3,7 @@ import { CreateWorkspaceUseCase } from '@modules/workspaces/use-cases/create-wor
 import { ConflictException, Injectable } from '@nestjs/common';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { RequestEmailVerificationUseCase } from './request-email-verification.use-case';
 
 interface RegisterInput {
   email: string;
@@ -16,6 +17,7 @@ export class RegisterUseCase {
     private users: UsersRepository,
     private createWorkspace: CreateWorkspaceUseCase,
     private metrics: MetricsService,
+    private requestEmailVerification: RequestEmailVerificationUseCase,
   ) {}
 
   async execute(input: RegisterInput) {
@@ -37,6 +39,8 @@ export class RegisterUseCase {
       name: `${input.name}'s Workspace`,
       isPersonal: true,
     });
+
+    await this.requestEmailVerification.execute(user.id);
 
     this.metrics.incRegister('success');
     return { id: user.id, email: user.email, name: user.name };

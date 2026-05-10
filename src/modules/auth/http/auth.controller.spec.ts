@@ -8,6 +8,10 @@ import { SetupTwoFactorUseCase } from '../use-cases/setup-2fa.use-case';
 import { EnableTwoFactorUseCase } from '../use-cases/enable-2fa.use-case';
 import { DisableTwoFactorUseCase } from '../use-cases/disable-2fa.use-case';
 import { VerifyTwoFactorUseCase } from '../use-cases/verify-2fa.use-case';
+import { RequestEmailVerificationUseCase } from '../use-cases/request-email-verification.use-case';
+import { VerifyEmailUseCase } from '../use-cases/verify-email.use-case';
+import { ForgotPasswordUseCase } from '../use-cases/forgot-password.use-case';
+import { ResetPasswordUseCase } from '../use-cases/reset-password.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -21,6 +25,10 @@ describe('AuthController', () => {
   let enable2fa: jest.Mocked<EnableTwoFactorUseCase>;
   let disable2fa: jest.Mocked<DisableTwoFactorUseCase>;
   let verify2fa: jest.Mocked<VerifyTwoFactorUseCase>;
+  let requestEmailVerification: jest.Mocked<RequestEmailVerificationUseCase>;
+  let verifyEmail: jest.Mocked<VerifyEmailUseCase>;
+  let forgotPassword: jest.Mocked<ForgotPasswordUseCase>;
+  let resetPassword: jest.Mocked<ResetPasswordUseCase>;
   let controller: AuthController;
 
   beforeEach(() => {
@@ -44,6 +52,18 @@ describe('AuthController', () => {
     verify2fa = {
       execute: jest.fn(),
     } as unknown as jest.Mocked<VerifyTwoFactorUseCase>;
+    requestEmailVerification = {
+      execute: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<RequestEmailVerificationUseCase>;
+    verifyEmail = {
+      execute: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<VerifyEmailUseCase>;
+    forgotPassword = {
+      execute: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<ForgotPasswordUseCase>;
+    resetPassword = {
+      execute: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<ResetPasswordUseCase>;
     controller = new AuthController(
       register,
       login,
@@ -53,6 +73,10 @@ describe('AuthController', () => {
       enable2fa,
       disable2fa,
       verify2fa,
+      requestEmailVerification,
+      verifyEmail,
+      forgotPassword,
+      resetPassword,
     );
   });
 
@@ -161,6 +185,32 @@ describe('AuthController', () => {
       code: '111111',
       userAgent: 'jest',
       ipAddress: '10.0.0.1',
+    });
+  });
+
+  it('requestEmailVerificationEndpoint forwards user id', async () => {
+    await controller.requestEmailVerificationEndpoint({ id: 'u1', sub: 'u1' });
+    expect(requestEmailVerification.execute).toHaveBeenCalledWith('u1');
+  });
+
+  it('verifyEmailEndpoint forwards token', async () => {
+    await controller.verifyEmailEndpoint({ token: 'tok' });
+    expect(verifyEmail.execute).toHaveBeenCalledWith('tok');
+  });
+
+  it('forgotPasswordEndpoint forwards email', async () => {
+    await controller.forgotPasswordEndpoint({ email: 'a@b.c' });
+    expect(forgotPassword.execute).toHaveBeenCalledWith('a@b.c');
+  });
+
+  it('resetPasswordEndpoint forwards token + new password', async () => {
+    await controller.resetPasswordEndpoint({
+      token: 'tok',
+      newPassword: 'StrongPass@123',
+    });
+    expect(resetPassword.execute).toHaveBeenCalledWith({
+      token: 'tok',
+      newPassword: 'StrongPass@123',
     });
   });
 });

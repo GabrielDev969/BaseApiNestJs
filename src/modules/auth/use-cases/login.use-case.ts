@@ -1,5 +1,9 @@
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { TokenService } from '../services/token.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { CreateSessionUseCase } from '@modules/sessions/use-cases/create-session.use-case';
@@ -35,6 +39,13 @@ export class LoginUseCase {
     if (!valid) {
       this.metrics.incLoginAttempt('failure');
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.emailVerifiedAt) {
+      this.metrics.incLoginAttempt('failure');
+      throw new ForbiddenException(
+        'Email not verified. Check your inbox for the verification link.',
+      );
     }
 
     if (user.twoFactorEnabled) {

@@ -7,7 +7,13 @@ import { InvitationsRepository } from '../repositories/invitations.repository.in
 import { RolesRepository } from '@modules/rbac/repositories/roles.repository.interface';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { WorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
+import { WorkspacesRepository } from '@modules/workspaces/repositories/workspaces.repository.interface';
 import { CryptoUtil } from '@shared/utils/crypto.util';
+import { EmailDispatcher } from '@shared/mailer/email-dispatcher.service';
+import {
+  buildAcceptInvitationUrl,
+  invitationEmail,
+} from '@shared/mailer/templates';
 import {
   InvitationResponseDto,
   toInvitationDto,
@@ -29,6 +35,8 @@ export class SendInvitationUseCase {
     private roles: RolesRepository,
     private users: UsersRepository,
     private members: WorkspaceMembersRepository,
+    private workspaces: WorkspacesRepository,
+    private emailDispatcher: EmailDispatcher,
   ) {}
 
   async execute(input: SendInvitationInput): Promise<InvitationResponseDto> {
@@ -72,6 +80,17 @@ export class SendInvitationUseCase {
       token,
       expiresAt,
     });
+
+    const [workspace, inviter] = await Promise.all([
+      this.workspaces.findById(input.workspaceId),
+      this.users.findById(input.invitedById),
+    ]);
+    const message = invitationEmail({
+      workspaceName: workspace?.name ?? 'a workspace',
+      invitedBy: inviter?.name ?? 'A teammate',
+      acceptUrl: buildAcceptInvitationUrl(token),
+    });
+    await this.emailDispatcher.enqueue({ to: input.email, ...message });
 
     return toInvitationDto(invitation, { includeToken: true });
   }

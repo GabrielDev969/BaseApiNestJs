@@ -40,6 +40,7 @@ services:
       - "9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -48,6 +49,22 @@ services:
       - '--web.enable-lifecycle'
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    container_name: workspace-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    environment:
+      ALERT_DISCORD_WEBHOOK_URL: ${ALERT_DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./infra/alertmanager/entrypoint.sh:/entrypoint.sh:ro
+      - alertmanager_data:/alertmanager
+    entrypoint: ["/entrypoint.sh"]
 
   grafana:
     image: grafana/grafana:11.4.0
@@ -71,4 +88,5 @@ volumes:
   postgres_data:
   redis_data:
   prometheus_data:
+  alertmanager_data:
   grafana_data:

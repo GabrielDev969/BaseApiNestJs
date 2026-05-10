@@ -5,11 +5,13 @@ import { CreateWorkspaceUseCase } from '@modules/workspaces/use-cases/create-wor
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { User } from '@modules/users/entities/user.entity';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { RequestEmailVerificationUseCase } from './request-email-verification.use-case';
 
 describe('RegisterUseCase', () => {
   let users: jest.Mocked<UsersRepository>;
   let createWorkspace: jest.Mocked<CreateWorkspaceUseCase>;
   let metrics: jest.Mocked<MetricsService>;
+  let requestEmailVerification: jest.Mocked<RequestEmailVerificationUseCase>;
   let useCase: RegisterUseCase;
 
   beforeEach(() => {
@@ -28,7 +30,15 @@ describe('RegisterUseCase', () => {
     metrics = {
       incRegister: jest.fn(),
     } as unknown as jest.Mocked<MetricsService>;
-    useCase = new RegisterUseCase(users, createWorkspace, metrics);
+    requestEmailVerification = {
+      execute: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<RequestEmailVerificationUseCase>;
+    useCase = new RegisterUseCase(
+      users,
+      createWorkspace,
+      metrics,
+      requestEmailVerification,
+    );
   });
 
   it('creates a user, hashes the password and provisions a personal workspace', async () => {
@@ -65,6 +75,7 @@ describe('RegisterUseCase', () => {
       name: "Jane's Workspace",
       isPersonal: true,
     });
+    expect(requestEmailVerification.execute).toHaveBeenCalledWith('u1');
   });
 
   it('throws ConflictException if the email already exists', async () => {

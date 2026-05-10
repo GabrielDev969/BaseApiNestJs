@@ -4,6 +4,8 @@ import { LoggerModule } from 'nestjs-pino';
 import { env } from './config/env.config';
 import { loggerConfig } from './config/logger.config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import Redis from 'ioredis';
 import { PrismaModule } from '@shared/database/prisma.module';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from '@shared/guards/jwt-auth.guard';
@@ -11,6 +13,8 @@ import { CustomThrottlerGuard } from '@shared/guards/custom-throttler.guard';
 import { AppCacheModule } from '@shared/cache/cache.module';
 import { MetricsModule } from '@shared/metrics/metrics.module';
 import { MetricsInterceptor } from '@shared/metrics/metrics.interceptor';
+import { QueuesModule } from '@shared/queues/queues.module';
+import { MailerModule } from '@shared/mailer/mailer.module';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
 import { PerformanceInterceptor } from '@shared/interceptors/performance.interceptor';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
@@ -39,10 +43,25 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
         },
       ],
       skipIf: () => env.NODE_ENV === 'test',
+      storage:
+        env.NODE_ENV === 'test'
+          ? undefined
+          : new ThrottlerStorageRedisService(
+              new Redis({
+                host: env.REDIS_HOST,
+                port: env.REDIS_PORT,
+                password: env.REDIS_PASSWORD,
+                keyPrefix: 'throttle:',
+                maxRetriesPerRequest: null,
+                enableReadyCheck: false,
+              }),
+            ),
     }),
     PrismaModule,
     AppCacheModule,
     MetricsModule,
+    QueuesModule,
+    MailerModule,
     AuthModule,
     UsersModule,
     WorkspacesModule,
