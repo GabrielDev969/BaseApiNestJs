@@ -24,6 +24,11 @@ const config: Config = {
     '!**/*.module.ts',
     '!**/main.ts',
     '!**/index.ts',
+    '!**/entities/**',
+    '!**/*.repository.interface.ts',
+    '!**/repositories/*.interface.ts',
+    '!**/generated/**',
+    '!**/config/logger.config.ts',
   ],
   coverageDirectory: '../coverage',
 };

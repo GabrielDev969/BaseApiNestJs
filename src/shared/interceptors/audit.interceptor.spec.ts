@@ -88,6 +88,180 @@ describe('AuditInterceptor', () => {
     });
   });
 
+  it('returns null resourceId when the response object lacks the configured field', async () => {
+    const ctx = buildContext(
+      { action: 'user.read', resource: 'user' },
+      {
+        method: 'GET',
+        url: '/api/v1/users/u1',
+        params: {},
+        query: {},
+        body: {},
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ name: 'no id here' }) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: null }),
+    );
+  });
+
+  it('coerces numeric response ids to strings', async () => {
+    const ctx = buildContext(
+      { action: 'item.read', resource: 'item' },
+      {
+        method: 'GET',
+        url: '/api/v1/items/42',
+        params: {},
+        query: {},
+        body: {},
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ id: 42 }) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: '42' }),
+    );
+  });
+
+  it('returns null resourceId when the response field is neither string nor number', async () => {
+    const ctx = buildContext(
+      { action: 'item.read', resource: 'item' },
+      {
+        method: 'GET',
+        url: '/api/v1/items/x',
+        params: {},
+        query: {},
+        body: {},
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ id: { nested: true } }) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: null }),
+    );
+  });
+
+  it('takes the first element when the configured param resolves to an array', async () => {
+    const ctx = buildContext(
+      {
+        action: 'user.bulk',
+        resource: 'user',
+        resourceIdFrom: 'param',
+        resourceIdField: 'ids',
+      },
+      {
+        method: 'DELETE',
+        url: '/api/v1/users',
+        params: { ids: ['u1', 'u2'] },
+        query: {},
+        body: {},
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of(undefined) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: 'u1' }),
+    );
+  });
+
+  it('returns null resourceId when the configured param resolves to an empty array', async () => {
+    const ctx = buildContext(
+      {
+        action: 'user.bulk',
+        resource: 'user',
+        resourceIdFrom: 'param',
+        resourceIdField: 'ids',
+      },
+      {
+        method: 'DELETE',
+        url: '/api/v1/users',
+        params: { ids: [] },
+        query: {},
+        body: {},
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of(undefined) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ resourceId: null }),
+    );
+  });
+
+  it('falls back to req.url when route.path is missing and recursively sanitizes nested secrets and arrays', async () => {
+    const ctx = buildContext(
+      { action: 'user.update', resource: 'user' },
+      {
+        method: 'POST',
+        url: '/api/v1/users/u1',
+        params: {},
+        query: {},
+        body: {
+          profile: { secret: 'shh', name: 'Jane' },
+          tokens: [{ token: 'abc', label: 'one' }],
+        },
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ id: 'u1' }) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          path: '/api/v1/users/u1',
+          body: {
+            profile: { secret: '[REDACTED]', name: 'Jane' },
+            tokens: [{ token: '[REDACTED]', label: 'one' }],
+          },
+        }),
+      }),
+    );
+  });
+
+  it('swallows errors thrown by audit.log so the request response is unaffected', async () => {
+    audit.log.mockRejectedValueOnce(new Error('db down'));
+    const ctx = buildContext(
+      { action: 'user.read', resource: 'user' },
+      {
+        method: 'GET',
+        url: '/api/v1/users/u1',
+        params: {},
+        query: {},
+        body: {},
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ id: 'u1' }) };
+
+    await expect(
+      firstValueFrom(interceptor.intercept(ctx, next)),
+    ).resolves.toEqual({ id: 'u1' });
+    await new Promise((r) => setImmediate(r));
+  });
+
   it('reads resourceId from params when configured with resourceIdFrom: param', async () => {
     const ctx = buildContext(
       {

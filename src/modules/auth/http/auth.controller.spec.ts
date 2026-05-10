@@ -108,4 +108,59 @@ describe('AuthController', () => {
 
     expect(refresh.execute).toHaveBeenCalledWith('rt-1');
   });
+
+  it('meEndpoint forwards the user id', async () => {
+    getMe.execute.mockResolvedValue({ id: 'u1' } as never);
+    await controller.meEndpoint({ id: 'u1', sub: 'u1' });
+    expect(getMe.execute).toHaveBeenCalledWith('u1');
+  });
+
+  it('setup2faEndpoint forwards the user id', async () => {
+    setup2fa.execute.mockResolvedValue({
+      secret: 'S',
+      otpauthUrl: 'otpauth://x',
+    });
+    const result = await controller.setup2faEndpoint({ id: 'u1', sub: 'u1' });
+    expect(setup2fa.execute).toHaveBeenCalledWith('u1');
+    expect(result.secret).toBe('S');
+  });
+
+  it('enable2faEndpoint forwards user id and code', async () => {
+    enable2fa.execute.mockResolvedValue({ recoveryCodes: ['code-1'] });
+    await controller.enable2faEndpoint(
+      { id: 'u1', sub: 'u1' },
+      { code: '123456' },
+    );
+    expect(enable2fa.execute).toHaveBeenCalledWith('u1', '123456');
+  });
+
+  it('disable2faEndpoint forwards user id, password, and code', async () => {
+    disable2fa.execute.mockResolvedValue(undefined);
+    await controller.disable2faEndpoint(
+      { id: 'u1', sub: 'u1' },
+      { password: 'pw', code: '654321' },
+    );
+    expect(disable2fa.execute).toHaveBeenCalledWith('u1', 'pw', '654321');
+  });
+
+  it('verify2faEndpoint forwards challenge, code, ua and ip', async () => {
+    verify2fa.execute.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+    });
+    const req = {
+      headers: { 'user-agent': 'jest' },
+      ip: '10.0.0.1',
+    } as unknown as Request;
+    await controller.verify2faEndpoint(
+      { challenge: 'ch', code: '111111' },
+      req,
+    );
+    expect(verify2fa.execute).toHaveBeenCalledWith({
+      challenge: 'ch',
+      code: '111111',
+      userAgent: 'jest',
+      ipAddress: '10.0.0.1',
+    });
+  });
 });

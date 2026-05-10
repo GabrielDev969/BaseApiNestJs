@@ -73,6 +73,37 @@ describe('RbacController', () => {
     expect(result).toBe(roleDto);
   });
 
+  it('list forwards workspace id', async () => {
+    listRoles.execute.mockResolvedValue([roleDto]);
+    const result = await controller.list(workspace);
+    expect(listRoles.execute).toHaveBeenCalledWith('w1');
+    expect(result).toEqual([roleDto]);
+  });
+
+  it('update forwards id, workspace and dto', async () => {
+    updateRole.execute.mockResolvedValue(roleDto);
+    await controller.update(
+      'r1',
+      { name: 'Renamed', permissionKeys: ['user:read'] },
+      workspace,
+    );
+    expect(updateRole.execute).toHaveBeenCalledWith({
+      id: 'r1',
+      workspaceId: 'w1',
+      name: 'Renamed',
+      permissionKeys: ['user:read'],
+    });
+  });
+
+  it('remove forwards id and workspace', async () => {
+    deleteRole.execute.mockResolvedValue(undefined);
+    await controller.remove('r1', workspace);
+    expect(deleteRole.execute).toHaveBeenCalledWith({
+      id: 'r1',
+      workspaceId: 'w1',
+    });
+  });
+
   it('addPermission delegates to AssignPermissionToRoleUseCase with role and workspace', async () => {
     const dto: AssignPermissionDto = { permissionKey: 'user:create' };
     assignPermission.execute.mockResolvedValue(roleDto);

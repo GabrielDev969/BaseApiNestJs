@@ -75,6 +75,16 @@ describe('UsersController', () => {
     expect(result).toBe(paginated);
   });
 
+  it('findOne forwards id and workspace id to GetUserByIdUseCase', async () => {
+    getUserById.execute.mockResolvedValue(userDto);
+    const result = await controller.findOne('u1', workspace);
+    expect(getUserById.execute).toHaveBeenCalledWith({
+      id: 'u1',
+      workspaceId: 'w1',
+    });
+    expect(result).toBe(userDto);
+  });
+
   it('create merges workspace id and creator into CreateUserUseCase input', async () => {
     const dto: CreateUserDto = {
       email: 'jane@example.com',

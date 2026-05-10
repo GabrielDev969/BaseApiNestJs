@@ -53,6 +53,41 @@ describe('OAuthController', () => {
     });
   });
 
+  it('loginStart throws BadRequestException for unknown provider', () => {
+    expect(() =>
+      controller.loginStart('myspace', { redirectUri: 'http://app' }),
+    ).toThrow('Unsupported OAuth provider "myspace"');
+  });
+
+  it('linkStart attaches the user id and link intent', async () => {
+    startOAuth.execute.mockResolvedValue({
+      authorizationUrl: 'https://github.com/auth',
+    });
+    await controller.linkStart(
+      'github',
+      { redirectUri: 'http://app/cb' },
+      { id: 'u1', sub: 'u1' },
+    );
+    expect(startOAuth.execute).toHaveBeenCalledWith({
+      provider: 'github',
+      intent: 'link',
+      userId: 'u1',
+      redirectUri: 'http://app/cb',
+    });
+  });
+
+  it('list forwards user id', async () => {
+    listAccounts.execute.mockResolvedValue([] as never);
+    await controller.list({ id: 'u1', sub: 'u1' });
+    expect(listAccounts.execute).toHaveBeenCalledWith('u1');
+  });
+
+  it('unlink forwards user id and account id', async () => {
+    unlinkAccount.execute.mockResolvedValue(undefined);
+    await controller.unlink({ id: 'u1', sub: 'u1' }, 'oa-1');
+    expect(unlinkAccount.execute).toHaveBeenCalledWith('u1', 'oa-1');
+  });
+
   it('callback forwards code, state, user-agent and IP to HandleOAuthCallbackUseCase', async () => {
     const dto: OAuthCallbackDto = { code: 'auth-code', state: 'signed-state' };
     const req = {

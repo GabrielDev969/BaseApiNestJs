@@ -121,6 +121,15 @@ describe('AcceptInvitationUseCase', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('throws 404 when authenticated user no longer exists', async () => {
+    invitations.findByToken.mockResolvedValue(baseInvitation());
+    users.findById.mockResolvedValue(null);
+    await expect(
+      useCase.execute({ token: 'tok', userId: 'gone' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(members.create).not.toHaveBeenCalled();
+  });
+
   it('throws 403 when logged-in email differs from invitation email', async () => {
     invitations.findByToken.mockResolvedValue(baseInvitation());
     users.findById.mockResolvedValue(baseUser({ email: 'other@example.com' }));

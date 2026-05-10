@@ -63,6 +63,28 @@ describe('AssignPermissionToRoleUseCase', () => {
     });
   });
 
+  it('preserves existing permissions when adding a new one', async () => {
+    const userCreate: Permission = {
+      id: 'p2',
+      key: 'user:create',
+      description: null,
+      category: 'user',
+    };
+    roles.findByIdInWorkspace.mockResolvedValue(baseRole([userRead]));
+    permissions.findByKey.mockResolvedValue(userCreate);
+    roles.update.mockResolvedValue(baseRole([userRead, userCreate]));
+
+    await useCase.execute({
+      roleId: 'r1',
+      workspaceId: 'w1',
+      permissionKey: 'user:create',
+    });
+
+    expect(roles.update).toHaveBeenCalledWith('r1', {
+      permissionKeys: ['user:read', 'user:create'],
+    });
+  });
+
   it('is idempotent — returns the role unchanged when permission is already assigned', async () => {
     roles.findByIdInWorkspace.mockResolvedValue(baseRole([userRead]));
     permissions.findByKey.mockResolvedValue(userRead);

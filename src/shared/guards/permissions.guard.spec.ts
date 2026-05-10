@@ -39,4 +39,24 @@ describe('PermissionsGuard', () => {
       ForbiddenException,
     );
   });
+
+  it('allows the request when no permissions metadata is present', () => {
+    reflector.getAllAndOverride.mockReturnValue(undefined);
+    expect(guard.canActivate(makeContext([]))).toBe(true);
+  });
+
+  it('allows the request when the metadata is an empty array', () => {
+    reflector.getAllAndOverride.mockReturnValue([]);
+    expect(guard.canActivate(makeContext(['user:read']))).toBe(true);
+  });
+
+  it('treats missing req.permissions as an empty list', () => {
+    reflector.getAllAndOverride.mockReturnValue(['user:read']);
+    const ctx = {
+      getHandler: () => () => undefined,
+      getClass: () => class Dummy {},
+      switchToHttp: () => ({ getRequest: () => ({}) }),
+    } as unknown as ExecutionContext;
+    expect(() => guard.canActivate(ctx)).toThrow(ForbiddenException);
+  });
 });

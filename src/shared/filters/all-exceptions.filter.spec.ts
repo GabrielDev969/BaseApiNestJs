@@ -2,6 +2,7 @@ import {
   ArgumentsHost,
   BadRequestException,
   ConflictException,
+  HttpException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -106,6 +107,104 @@ describe('AllExceptionsFilter', () => {
       if (c.details) expect(body.details).toEqual(c.details);
       else expect(body).not.toHaveProperty('details');
     }
+  });
+
+  it('handles HttpException whose response body is a plain string', () => {
+    const { host, status, json } = buildHost();
+    const exception = new HttpException('teapot mode', 418);
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(418);
+    const body = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      statusCode: 418,
+      error: 'Error',
+      message: 'teapot mode',
+    });
+  });
+
+  it('falls back to exception.message when HttpException response has no message field', () => {
+    const { host, status, json } = buildHost();
+    const exception = new HttpException({ error: 'Custom Error' }, 422);
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(422);
+    const body = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      statusCode: 422,
+      error: 'Custom Error',
+      message: expect.any(String),
+    });
+  });
+
+  it.each([
+    ['P2003', 409, 'Conflict', 'Foreign key constraint violated'],
+    ['P2014', 400, 'Bad Request', 'Invalid relation in the request'],
+  ])(
+    'maps Prisma %s to status %d',
+    (code, expectedStatus, expectedError, expectedMessage) => {
+      const { host, status, json } = buildHost();
+      const exception = new Prisma.PrismaClientKnownRequestError('msg', {
+        code,
+        clientVersion: '7',
+      });
+
+      filter.catch(exception, host);
+
+      expect(status).toHaveBeenCalledWith(expectedStatus);
+      const body = json.mock.calls[0][0] as Record<string, unknown>;
+      expect(body).toMatchObject({
+        statusCode: expectedStatus,
+        error: expectedError,
+        message: expectedMessage,
+      });
+    },
+  );
+
+  it('maps unknown Prisma error codes to a generic 500 database error', () => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const { host, status, json } = buildHost();
+    const exception = new Prisma.PrismaClientKnownRequestError('msg', {
+      code: 'P9999',
+      clientVersion: '7',
+    });
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(500);
+    const body = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Database error',
+    });
+  });
+
+  it('maps PrismaClientValidationError to 400 Bad Request', () => {
+    const { host, status, json } = buildHost();
+    const exception = new Prisma.PrismaClientValidationError('bad query', {
+      clientVersion: '7',
+    });
+
+    filter.catch(exception, host);
+
+    expect(status).toHaveBeenCalledWith(400);
+    const body = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Invalid database query',
+    });
+  });
+
+  it('omits requestId when the request has no id', () => {
+    const { host, json } = buildHost({ id: undefined });
+    filter.catch(new NotFoundException('x'), host);
+
+    const body = json.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('requestId');
   });
 
   it('maps unknown errors to 500 and logs them', () => {
