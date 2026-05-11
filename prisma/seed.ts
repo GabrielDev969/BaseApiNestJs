@@ -116,8 +116,13 @@ async function seedSuperAdmin(allPermissionKeys: string[]): Promise<void> {
 
   const user = await prisma.user.upsert({
     where: { email: env.email },
-    update: { name: env.name },
-    create: { email: env.email, name: env.name, passwordHash },
+    update: { name: env.name, emailVerifiedAt: new Date() },
+    create: {
+      email: env.email,
+      name: env.name,
+      passwordHash,
+      emailVerifiedAt: new Date(),
+    },
   });
 
   const workspace = await prisma.workspace.upsert({
