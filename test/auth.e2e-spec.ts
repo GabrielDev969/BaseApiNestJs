@@ -6,17 +6,20 @@ import {
   stopTestDatabase,
   resetDatabase,
 } from './helpers/test-database';
+import type { TestEmailDispatcher } from './helpers/test-email-dispatcher';
+import { registerAndVerify } from './helpers/auth-flow';
 
 describe('Auth flow (e2e)', () => {
   let app: INestApplication;
   let server: App;
+  let emailDispatcher: TestEmailDispatcher;
 
   beforeAll(async () => {
     await startTestDatabase();
 
     const { createTestApp } =
       require('./helpers/test-app') as typeof import('./helpers/test-app');
-    app = await createTestApp();
+    ({ app, emailDispatcher } = await createTestApp());
     server = app.getHttpServer() as App;
   });
 
@@ -27,6 +30,7 @@ describe('Auth flow (e2e)', () => {
 
   beforeEach(async () => {
     await resetDatabase();
+    emailDispatcher.reset();
   });
 
   const credentials = {
@@ -61,10 +65,7 @@ describe('Auth flow (e2e)', () => {
   });
 
   it('POST /auth/v1/login returns access and refresh tokens', async () => {
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send(credentials)
-      .expect(201);
+    await registerAndVerify(server, emailDispatcher, credentials);
 
     const res = await request(server)
       .post('/api/v1/auth/login')
@@ -76,10 +77,7 @@ describe('Auth flow (e2e)', () => {
   });
 
   it('POST /auth/v1/login rejects wrong password with 401', async () => {
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send(credentials)
-      .expect(201);
+    await registerAndVerify(server, emailDispatcher, credentials);
 
     await request(server)
       .post('/api/v1/auth/login')
@@ -87,11 +85,20 @@ describe('Auth flow (e2e)', () => {
       .expect(401);
   });
 
-  it('GET /auth/v1/me returns profile, workspaces and isSuperAdmin=false', async () => {
+  it('POST /auth/v1/login rejects unverified email with 403', async () => {
     await request(server)
       .post('/api/v1/auth/register')
       .send(credentials)
       .expect(201);
+
+    await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(403);
+  });
+
+  it('GET /auth/v1/me returns profile, workspaces and isSuperAdmin=false', async () => {
+    await registerAndVerify(server, emailDispatcher, credentials);
 
     const login = await request(server)
       .post('/api/v1/auth/login')

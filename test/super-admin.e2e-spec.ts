@@ -8,6 +8,8 @@ import {
   getPrisma,
 } from './helpers/test-database';
 import { seedPermissions } from './helpers/seed-permissions';
+import type { TestEmailDispatcher } from './helpers/test-email-dispatcher';
+import { registerAndVerify } from './helpers/auth-flow';
 import {
   ADMIN_WORKSPACE_SLUG,
   SUPER_ADMIN_ROLE,
@@ -16,13 +18,14 @@ import {
 describe('Super admin fallback (e2e)', () => {
   let app: INestApplication;
   let server: App;
+  let emailDispatcher: TestEmailDispatcher;
 
   beforeAll(async () => {
     await startTestDatabase();
 
     const { createTestApp } =
       require('./helpers/test-app') as typeof import('./helpers/test-app');
-    app = await createTestApp();
+    ({ app, emailDispatcher } = await createTestApp());
     server = app.getHttpServer() as App;
   });
 
@@ -34,13 +37,15 @@ describe('Super admin fallback (e2e)', () => {
   beforeEach(async () => {
     await resetDatabase();
     await seedPermissions();
+    emailDispatcher.reset();
   });
 
   async function registerAndLogin(email: string, name: string) {
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send({ email, name, password: 'StrongPass@123' })
-      .expect(201);
+    await registerAndVerify(server, emailDispatcher, {
+      email,
+      name,
+      password: 'StrongPass@123',
+    });
     const login = await request(server)
       .post('/api/v1/auth/login')
       .send({ email, password: 'StrongPass@123' })

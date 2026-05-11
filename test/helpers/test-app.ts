@@ -5,11 +5,23 @@ import {
   VersioningType,
 } from '@nestjs/common';
 import { AppModule } from '../../src/app.module';
+import { EmailDispatcher } from '../../src/shared/mailer/email-dispatcher.service';
+import { TestEmailDispatcher } from './test-email-dispatcher';
 
-export async function createTestApp(): Promise<INestApplication> {
+export interface TestAppHandle {
+  app: INestApplication;
+  emailDispatcher: TestEmailDispatcher;
+}
+
+export async function createTestApp(): Promise<TestAppHandle> {
+  const emailDispatcher = new TestEmailDispatcher();
+
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideProvider(EmailDispatcher)
+    .useValue(emailDispatcher)
+    .compile();
 
   const app = moduleRef.createNestApplication();
 
@@ -25,5 +37,5 @@ export async function createTestApp(): Promise<INestApplication> {
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   await app.init();
-  return app;
+  return { app, emailDispatcher };
 }

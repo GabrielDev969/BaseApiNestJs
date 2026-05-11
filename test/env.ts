@@ -6,8 +6,8 @@ process.env.JWT_REFRESH_SECRET = 'b'.repeat(32);
 process.env.JWT_ACCESS_EXPIRES_IN = '15m';
 process.env.JWT_REFRESH_EXPIRES_IN = '7d';
 process.env.ENCRYPTION_KEY = '0'.repeat(64);
-process.env.REDIS_HOST = 'localhost';
-process.env.REDIS_PORT = '6379';
+if (!process.env.REDIS_HOST) process.env.REDIS_HOST = 'localhost';
+if (!process.env.REDIS_PORT) process.env.REDIS_PORT = '6379';
 process.env.THROTTLE_TTL = '60';
 process.env.THROTTLE_LIMIT = '100';
 

@@ -6,17 +6,20 @@ import {
   stopTestDatabase,
   resetDatabase,
 } from './helpers/test-database';
+import type { TestEmailDispatcher } from './helpers/test-email-dispatcher';
+import { registerAndVerify } from './helpers/auth-flow';
 
 describe('Sessions flow (e2e)', () => {
   let app: INestApplication;
   let server: App;
+  let emailDispatcher: TestEmailDispatcher;
 
   beforeAll(async () => {
     await startTestDatabase();
 
     const { createTestApp } =
       require('./helpers/test-app') as typeof import('./helpers/test-app');
-    app = await createTestApp();
+    ({ app, emailDispatcher } = await createTestApp());
     server = app.getHttpServer() as App;
   });
 
@@ -27,17 +30,15 @@ describe('Sessions flow (e2e)', () => {
 
   beforeEach(async () => {
     await resetDatabase();
+    emailDispatcher.reset();
   });
 
   async function loginTwice() {
-    await request(server)
-      .post('/api/v1/auth/register')
-      .send({
-        email: 'jane@example.com',
-        name: 'Jane',
-        password: 'StrongPass@123',
-      })
-      .expect(201);
+    await registerAndVerify(server, emailDispatcher, {
+      email: 'jane@example.com',
+      name: 'Jane',
+      password: 'StrongPass@123',
+    });
 
     const a = await request(server)
       .post('/api/v1/auth/login')

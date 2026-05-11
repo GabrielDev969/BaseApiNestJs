@@ -8,6 +8,7 @@
     "^.+\\.(t|j)s$": ["ts-jest", { "isolatedModules": true }]
   },
   "setupFiles": ["<rootDir>/test/env.ts"],
+  "globalSetup": "<rootDir>/test/helpers/test-redis.ts",
   "moduleNameMapper": {
     "^nanoid$": "<rootDir>/test/stubs/nanoid.ts",
     "^@core/(.*)$": "<rootDir>/src/core/$1",
