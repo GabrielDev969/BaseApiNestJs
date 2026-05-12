@@ -66,7 +66,7 @@ describe('OAuthController', () => {
     await controller.linkStart(
       'github',
       { redirectUri: 'http://app/cb' },
-      { id: 'u1', sub: 'u1' },
+      { id: 'u1', sessionId: 's1' },
     );
     expect(startOAuth.execute).toHaveBeenCalledWith({
       provider: 'github',
@@ -78,13 +78,13 @@ describe('OAuthController', () => {
 
   it('list forwards user id', async () => {
     listAccounts.execute.mockResolvedValue([] as never);
-    await controller.list({ id: 'u1', sub: 'u1' });
+    await controller.list({ id: 'u1', sessionId: 's1' });
     expect(listAccounts.execute).toHaveBeenCalledWith('u1');
   });
 
   it('unlink forwards user id and account id', async () => {
     unlinkAccount.execute.mockResolvedValue(undefined);
-    await controller.unlink({ id: 'u1', sub: 'u1' }, 'oa-1');
+    await controller.unlink({ id: 'u1', sessionId: 's1' }, 'oa-1');
     expect(unlinkAccount.execute).toHaveBeenCalledWith('u1', 'oa-1');
   });
 

@@ -21,7 +21,7 @@ describe('RefreshTokenUseCase', () => {
       revokeAllForUser: jest.fn(),
     } as unknown as jest.Mocked<SessionsRepository>;
     createSession = {
-      execute: jest.fn().mockResolvedValue({ id: 's2' }),
+      execute: jest.fn().mockResolvedValue({ id: 's2', userId: 'u1' }),
     } as unknown as jest.Mocked<CreateSessionUseCase>;
     useCase = new RefreshTokenUseCase(tokens, sessions, createSession);
   });
@@ -64,7 +64,7 @@ describe('RefreshTokenUseCase', () => {
     expect(sessions.revokeAllForUser).toHaveBeenCalledWith('u1');
   });
 
-  it('rotates the refresh token, revokes the old session and creates a new one', async () => {
+  it('rotates the refresh token, revokes the old session and signs access with the new sessionId', async () => {
     sessions.findByTokenHash.mockResolvedValue({
       id: 's1',
       userId: 'u1',
@@ -84,6 +84,10 @@ describe('RefreshTokenUseCase', () => {
       refreshToken: expect.any(String),
       userAgent: 'ua',
       ipAddress: '10.0.0.1',
+    });
+    expect(tokens.signAccessToken).toHaveBeenCalledWith({
+      userId: 'u1',
+      sessionId: 's2',
     });
     expect(result.accessToken).toBe('new-access');
     expect(result.refreshToken).toMatch(/^[0-9a-f]{128}$/);

@@ -118,11 +118,29 @@ describe('LoginUseCase', () => {
     });
   });
 
-  it('issueTokens persists session and returns an opaque refresh token', async () => {
+  it('issueTokens persists session first, then signs access with that sessionId', async () => {
+    const callOrder: string[] = [];
+    createSession.execute.mockImplementation((input) => {
+      callOrder.push('createSession');
+      return Promise.resolve({
+        id: 's1',
+        userId: input.userId,
+        refreshTokenHash: 'hash',
+        userAgent: input.userAgent ?? null,
+        ipAddress: input.ipAddress ?? null,
+      }) as never;
+    });
+    tokens.signAccessToken.mockImplementation(() => {
+      callOrder.push('signAccessToken');
+      return Promise.resolve('access-token');
+    });
+
     const result = await useCase.issueTokens('u1', 'ua', '10.0.0.1');
+
+    expect(callOrder).toEqual(['createSession', 'signAccessToken']);
     expect(tokens.signAccessToken).toHaveBeenCalledWith({
-      sub: 'u1',
-      id: 'u1',
+      userId: 'u1',
+      sessionId: 's1',
     });
     expect(result.accessToken).toBe('access-token');
     expect(result.refreshToken).toMatch(/^[0-9a-f]{128}$/);

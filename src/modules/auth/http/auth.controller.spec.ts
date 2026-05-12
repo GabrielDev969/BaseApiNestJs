@@ -175,7 +175,7 @@ describe('AuthController', () => {
 
   it('meEndpoint forwards the user id', async () => {
     getMe.execute.mockResolvedValue({ id: 'u1' } as never);
-    await controller.meEndpoint({ id: 'u1', sub: 'u1' });
+    await controller.meEndpoint({ id: 'u1', sessionId: 's1' });
     expect(getMe.execute).toHaveBeenCalledWith('u1');
   });
 
@@ -184,7 +184,10 @@ describe('AuthController', () => {
       secret: 'S',
       otpauthUrl: 'otpauth://x',
     });
-    const result = await controller.setup2faEndpoint({ id: 'u1', sub: 'u1' });
+    const result = await controller.setup2faEndpoint({
+      id: 'u1',
+      sessionId: 's1',
+    });
     expect(setup2fa.execute).toHaveBeenCalledWith('u1');
     expect(result.secret).toBe('S');
   });
@@ -192,7 +195,7 @@ describe('AuthController', () => {
   it('enable2faEndpoint forwards user id and code', async () => {
     enable2fa.execute.mockResolvedValue({ recoveryCodes: ['code-1'] });
     await controller.enable2faEndpoint(
-      { id: 'u1', sub: 'u1' },
+      { id: 'u1', sessionId: 's1' },
       { code: '123456' },
     );
     expect(enable2fa.execute).toHaveBeenCalledWith('u1', '123456');
@@ -201,7 +204,7 @@ describe('AuthController', () => {
   it('disable2faEndpoint forwards user id, password, and code', async () => {
     disable2fa.execute.mockResolvedValue(undefined);
     await controller.disable2faEndpoint(
-      { id: 'u1', sub: 'u1' },
+      { id: 'u1', sessionId: 's1' },
       { password: 'pw', code: '654321' },
     );
     expect(disable2fa.execute).toHaveBeenCalledWith('u1', 'pw', '654321');
@@ -237,7 +240,10 @@ describe('AuthController', () => {
   });
 
   it('requestEmailVerificationEndpoint forwards user id', async () => {
-    await controller.requestEmailVerificationEndpoint({ id: 'u1', sub: 'u1' });
+    await controller.requestEmailVerificationEndpoint({
+      id: 'u1',
+      sessionId: 's1',
+    });
     expect(requestEmailVerification.execute).toHaveBeenCalledWith('u1');
   });
 

@@ -4,22 +4,25 @@ import { env } from 'src/config/env.config';
 
 export interface AccessTokenPayload {
   id: string;
-  sessionId?: string;
-  email?: string;
-  sub: string;
-  workspaceId?: string;
+  sessionId: string;
 }
 
 @Injectable()
 export class TokenService {
   constructor(private jwt: JwtService) {}
 
-  signAccessToken(payload: AccessTokenPayload): Promise<string> {
-    return this.jwt.signAsync(payload, {
-      privateKey: env.JWT_ACCESS_PRIVATE_KEY,
-      expiresIn: env.JWT_ACCESS_EXPIRES_IN,
-      algorithm: 'RS256',
-    });
+  signAccessToken(input: {
+    userId: string;
+    sessionId: string;
+  }): Promise<string> {
+    return this.jwt.signAsync(
+      { sub: input.userId, sessionId: input.sessionId },
+      {
+        privateKey: env.JWT_ACCESS_PRIVATE_KEY,
+        expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+        algorithm: 'RS256',
+      },
+    );
   }
 
   signChallengeToken(userId: string): Promise<string> {

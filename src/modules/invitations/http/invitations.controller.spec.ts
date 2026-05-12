@@ -14,7 +14,7 @@ describe('InvitationsController', () => {
   let controller: InvitationsController;
 
   const workspace = { id: 'w1' } as WorkspaceContext;
-  const user = { id: 'u1', sub: 'u1' } as AuthenticatedUser;
+  const user = { id: 'u1', sessionId: 's1' } as AuthenticatedUser;
 
   beforeEach(() => {
     send = {

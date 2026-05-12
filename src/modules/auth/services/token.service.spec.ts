@@ -6,31 +6,22 @@ describe('TokenService', () => {
   const jwt = new JwtService({});
   const service = new TokenService(jwt);
 
-  it('signs an access token (RS256) verifiable with the access public key', async () => {
+  it('signs an access token (RS256) with sub and sessionId, verifiable with the public key', async () => {
     const token = await service.signAccessToken({
-      id: 'u1',
-      sub: 'u1',
-      email: 'jane@example.com',
+      userId: 'u1',
       sessionId: 's1',
-      workspaceId: 'w1',
     });
 
-    const payload = await jwt.verifyAsync<{
-      id: string;
-      sub: string;
-      email: string;
-      sessionId: string;
-      workspaceId: string;
-    }>(token, {
-      publicKey: env.JWT_ACCESS_PUBLIC_KEY,
-      algorithms: ['RS256'],
-    });
+    const payload = await jwt.verifyAsync<{ sub: string; sessionId: string }>(
+      token,
+      {
+        publicKey: env.JWT_ACCESS_PUBLIC_KEY,
+        algorithms: ['RS256'],
+      },
+    );
 
-    expect(payload.id).toBe('u1');
     expect(payload.sub).toBe('u1');
-    expect(payload.email).toBe('jane@example.com');
     expect(payload.sessionId).toBe('s1');
-    expect(payload.workspaceId).toBe('w1');
   });
 
   it('round-trips a 2FA challenge token and rejects tokens with the wrong type marker', async () => {

@@ -12,7 +12,6 @@ describe('SessionsController', () => {
 
   const user: AccessTokenPayload = {
     id: 'u1',
-    sub: 'u1',
     sessionId: 'current-session',
   };
 

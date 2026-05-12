@@ -26,17 +26,18 @@ export class RefreshTokenUseCase {
 
     await this.sessions.revoke(session.id);
 
-    const newAccess = await this.tokens.signAccessToken({
-      sub: session.userId,
-      id: session.userId,
-    });
     const newRefresh = CryptoUtil.generateToken(64);
 
-    await this.createSession.execute({
+    const newSession = await this.createSession.execute({
       userId: session.userId,
       refreshToken: newRefresh,
       userAgent: session.userAgent ?? undefined,
       ipAddress: session.ipAddress ?? undefined,
+    });
+
+    const newAccess = await this.tokens.signAccessToken({
+      userId: session.userId,
+      sessionId: newSession.id,
     });
 
     return { accessToken: newAccess, refreshToken: newRefresh };

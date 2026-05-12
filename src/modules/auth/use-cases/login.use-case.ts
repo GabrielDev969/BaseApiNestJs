@@ -59,17 +59,18 @@ export class LoginUseCase {
   }
 
   async issueTokens(userId: string, userAgent?: string, ipAddress?: string) {
-    const accessToken = await this.tokens.signAccessToken({
-      sub: userId,
-      id: userId,
-    });
     const refreshToken = CryptoUtil.generateToken(64);
 
-    await this.createSession.execute({
+    const session = await this.createSession.execute({
       userId,
       refreshToken,
       userAgent,
       ipAddress,
+    });
+
+    const accessToken = await this.tokens.signAccessToken({
+      userId,
+      sessionId: session.id,
     });
 
     return { accessToken, refreshToken };
