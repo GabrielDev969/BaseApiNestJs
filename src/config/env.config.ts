@@ -1,6 +1,24 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+const base64Pem = (label: string, kind: 'PRIVATE' | 'PUBLIC') =>
+  z
+    .string()
+    .min(1, `${label} is required`)
+    .transform((val, ctx) => {
+      const pem = Buffer.from(val, 'base64').toString('utf8');
+      const beginMarker = new RegExp(`-----BEGIN [A-Z ]*${kind} KEY-----`, 'm');
+      const endMarker = new RegExp(`-----END [A-Z ]*${kind} KEY-----`, 'm');
+      if (!beginMarker.test(pem) || !endMarker.test(pem)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} must be a base64-encoded PEM ${kind.toLowerCase()} key`,
+        });
+        return z.NEVER;
+      }
+      return pem;
+    });
+
 const envSchema = z
   .object({
     NODE_ENV: z
@@ -39,15 +57,11 @@ const envSchema = z
         return Number.isInteger(n) && n >= 0 ? n : true;
       }),
 
-    JWT_ACCESS_SECRET: z.string().min(32),
-    JWT_REFRESH_SECRET: z.string().min(32),
+    JWT_ACCESS_PRIVATE_KEY: base64Pem('JWT_ACCESS_PRIVATE_KEY', 'PRIVATE'),
+    JWT_ACCESS_PUBLIC_KEY: base64Pem('JWT_ACCESS_PUBLIC_KEY', 'PUBLIC'),
     JWT_ACCESS_EXPIRES_IN: z
       .string()
       .default('15m')
-      .transform((val) => val as `${number}${'s' | 'm' | 'h' | 'd'}`),
-    JWT_REFRESH_EXPIRES_IN: z
-      .string()
-      .default('7d')
       .transform((val) => val as `${number}${'s' | 'm' | 'h' | 'd'}`),
 
     ENCRYPTION_KEY: z

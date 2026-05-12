@@ -64,7 +64,7 @@ describe('Auth flow (e2e)', () => {
       .expect(409);
   });
 
-  it('POST /auth/v1/login returns access and refresh tokens', async () => {
+  it('POST /auth/v1/login returns access token and sets refresh cookie', async () => {
     await registerAndVerify(server, emailDispatcher, credentials);
 
     const res = await request(server)
@@ -73,7 +73,15 @@ describe('Auth flow (e2e)', () => {
       .expect(200);
 
     expect(res.body.accessToken).toEqual(expect.any(String));
-    expect(res.body.refreshToken).toEqual(expect.any(String));
+    expect(res.body.refreshToken).toBeUndefined();
+
+    const setCookie = res.headers['set-cookie'] as unknown as string[];
+    expect(setCookie).toBeDefined();
+    const refreshCookie = setCookie.find((c) => c.startsWith('refresh_token='));
+    expect(refreshCookie).toBeDefined();
+    expect(refreshCookie).toContain('HttpOnly');
+    expect(refreshCookie).toContain('SameSite=Strict');
+    expect(refreshCookie).toContain('Path=/api/v1/auth/refresh');
   });
 
   it('POST /auth/v1/login rejects wrong password with 401', async () => {

@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -19,7 +20,8 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import { setRefreshCookie } from '@modules/auth/http/refresh-cookie';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
@@ -124,18 +126,24 @@ export class OAuthController {
   @ApiValidationError()
   @ApiRateLimitError()
   @ApiServerError()
-  callback(
+  async callback(
     @Param('provider') providerParam: string,
     @Body() body: OAuthCallbackDto,
     @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.handleCallback.execute({
+    const result = await this.handleCallback.execute({
       provider: parseProvider(providerParam),
       code: body.code,
       state: body.state,
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip,
     });
+    if (result.intent === 'login') {
+      setRefreshCookie(res, result.refreshToken);
+      return { intent: result.intent, accessToken: result.accessToken };
+    }
+    return result;
   }
 
   @ApiBearerAuth()

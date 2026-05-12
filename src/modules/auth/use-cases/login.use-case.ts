@@ -63,7 +63,7 @@ export class LoginUseCase {
       sub: userId,
       id: userId,
     });
-    const refreshToken = await this.tokens.signRefreshToken(userId);
+    const refreshToken = CryptoUtil.generateToken(64);
 
     await this.createSession.execute({
       userId,

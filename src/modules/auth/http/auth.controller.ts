@@ -4,8 +4,10 @@ import {
   Get,
   Body,
   Req,
+  Res,
   HttpCode,
   HttpStatus,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -28,8 +30,8 @@ import { ForgotPasswordUseCase } from '../use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from '../use-cases/reset-password.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
 import { MeResponseDto } from './dto/me-response.dto';
+import { readRefreshCookie, setRefreshCookie } from './refresh-cookie';
 import { EnableTwoFactorDto } from './dto/enable-2fa.dto';
 import { DisableTwoFactorDto } from './dto/disable-2fa.dto';
 import { VerifyTwoFactorDto } from './dto/verify-2fa.dto';
@@ -48,7 +50,7 @@ import {
 } from '@shared/swagger/api-errors.decorator';
 import { ErrorResponseDto } from '@shared/dto/error-response.dto';
 import type { AccessTokenPayload } from '../services/token.service';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -101,31 +103,46 @@ export class AuthController {
   })
   @ApiRateLimitError()
   @ApiServerError()
-  loginEndpoint(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.login.execute({
+  async loginEndpoint(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.login.execute({
       ...dto,
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip,
     });
+    if ('requires2FA' in result) return result;
+    setRefreshCookie(res, result.refreshToken);
+    return { accessToken: result.accessToken };
   }
 
   @Public()
   @Post('refresh')
   @RateLimit('refreshToken')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Rotate refresh token' })
-  @ApiBody({ type: RefreshDto })
-  @ApiResponse({ status: 200, description: 'New access and refresh tokens' })
-  @ApiValidationError()
+  @ApiOperation({ summary: 'Rotate refresh token (cookie-based)' })
+  @ApiResponse({
+    status: 200,
+    description: 'New access token (refresh cookie rotated)',
+  })
   @ApiResponse({
     status: 401,
-    description: 'Invalid or expired refresh token',
+    description: 'Missing, invalid or expired refresh cookie',
     type: ErrorResponseDto,
   })
   @ApiRateLimitError()
   @ApiServerError()
-  refreshEndpoint(@Body() dto: RefreshDto) {
-    return this.refresh.execute(dto.refreshToken);
+  async refreshEndpoint(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const cookie = readRefreshCookie(req);
+    if (!cookie) throw new UnauthorizedException('Missing refresh cookie');
+    const result = await this.refresh.execute(cookie);
+    setRefreshCookie(res, result.refreshToken);
+    return { accessToken: result.accessToken };
   }
 
   @ApiBearerAuth()
@@ -203,13 +220,19 @@ export class AuthController {
   })
   @ApiRateLimitError()
   @ApiServerError()
-  verify2faEndpoint(@Body() dto: VerifyTwoFactorDto, @Req() req: Request) {
-    return this.verify2fa.execute({
+  async verify2faEndpoint(
+    @Body() dto: VerifyTwoFactorDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.verify2fa.execute({
       challenge: dto.challenge,
       code: dto.code,
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip,
     });
+    setRefreshCookie(res, result.refreshToken);
+    return { accessToken: result.accessToken };
   }
 
   @ApiBearerAuth()

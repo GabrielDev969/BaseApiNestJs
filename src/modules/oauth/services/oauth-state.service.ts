@@ -26,14 +26,19 @@ export class OAuthStateService {
         type: 'oauth-state' as const,
         nonce: crypto.randomBytes(16).toString('hex'),
       },
-      { secret: env.JWT_ACCESS_SECRET, expiresIn: '5m' },
+      {
+        privateKey: env.JWT_ACCESS_PRIVATE_KEY,
+        expiresIn: '5m',
+        algorithm: 'RS256',
+      },
     );
   }
 
   async verify(token: string): Promise<OAuthStatePayload> {
     try {
       const payload = await this.jwt.verifyAsync<OAuthStatePayload>(token, {
-        secret: env.JWT_ACCESS_SECRET,
+        publicKey: env.JWT_ACCESS_PUBLIC_KEY,
+        algorithms: ['RS256'],
       });
       if (payload.type !== 'oauth-state') {
         throw new UnauthorizedException('Invalid OAuth state');

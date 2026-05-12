@@ -1,4 +1,4 @@
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { OAuthController } from './oauth.controller';
 import { StartOAuthUseCase } from '../use-cases/start-oauth.use-case';
 import { HandleOAuthCallbackUseCase } from '../use-cases/handle-oauth-callback.use-case';
@@ -88,19 +88,23 @@ describe('OAuthController', () => {
     expect(unlinkAccount.execute).toHaveBeenCalledWith('u1', 'oa-1');
   });
 
-  it('callback forwards code, state, user-agent and IP to HandleOAuthCallbackUseCase', async () => {
+  it('callback forwards request data, sets refresh cookie on login, returns no refreshToken', async () => {
     const dto: OAuthCallbackDto = { code: 'auth-code', state: 'signed-state' };
     const req = {
       headers: { 'user-agent': 'jest-runner' },
       ip: '10.0.0.1',
     } as unknown as Request;
+    const res = {
+      cookie: jest.fn(),
+      clearCookie: jest.fn(),
+    } as unknown as Response;
     handleCallback.execute.mockResolvedValue({
       intent: 'login',
       accessToken: 'a',
       refreshToken: 'r',
     });
 
-    await controller.callback('github', dto, req);
+    const result = await controller.callback('github', dto, req, res);
 
     expect(handleCallback.execute).toHaveBeenCalledWith({
       provider: 'github',
@@ -108,6 +112,38 @@ describe('OAuthController', () => {
       state: 'signed-state',
       userAgent: 'jest-runner',
       ipAddress: '10.0.0.1',
+    });
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'r',
+      expect.any(Object),
+    );
+    expect(result).toEqual({ intent: 'login', accessToken: 'a' });
+  });
+
+  it('callback passes link results through without setting the cookie', async () => {
+    const dto: OAuthCallbackDto = { code: 'auth-code', state: 'signed-state' };
+    const req = {
+      headers: {},
+      ip: '10.0.0.1',
+    } as unknown as Request;
+    const res = {
+      cookie: jest.fn(),
+      clearCookie: jest.fn(),
+    } as unknown as Response;
+    handleCallback.execute.mockResolvedValue({
+      intent: 'link',
+      accountId: 'oa-9',
+      provider: 'github',
+    });
+
+    const result = await controller.callback('github', dto, req, res);
+
+    expect(res.cookie).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      intent: 'link',
+      accountId: 'oa-9',
+      provider: 'github',
     });
   });
 });

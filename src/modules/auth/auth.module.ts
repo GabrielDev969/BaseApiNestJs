@@ -23,15 +23,12 @@ import { EmailVerifyTokensRepository } from './repositories/email-verify-tokens.
 import { PrismaEmailVerifyTokensRepository } from './repositories/prisma-email-verify-tokens.repository';
 import { PasswordResetTokensRepository } from './repositories/password-reset-tokens.repository.interface';
 import { PrismaPasswordResetTokensRepository } from './repositories/prisma-password-reset-tokens.repository';
-import { env } from 'src/config/env.config';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: env.JWT_ACCESS_SECRET,
-    }),
+    JwtModule.register({}),
     UsersModule,
     SessionsModule,
     WorkspacesModule,

@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env.config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -16,6 +17,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.useLogger(app.get(Logger));
   app.use(helmet());
+  app.use(cookieParser());
 
   app.enableCors({
     origin: env.CORS_ORIGINS ?? true,

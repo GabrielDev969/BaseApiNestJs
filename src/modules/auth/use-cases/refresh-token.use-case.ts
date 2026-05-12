@@ -14,15 +14,6 @@ export class RefreshTokenUseCase {
   ) {}
 
   async execute(refreshToken: string) {
-    let payload: { sub: string };
-    try {
-      payload = (await this.tokens.verifyRefreshToken(refreshToken)) as {
-        sub: string;
-      };
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-
     const tokenHash = CryptoUtil.hashToken(refreshToken);
     const session = await this.sessions.findByTokenHash(tokenHash);
 
@@ -36,13 +27,13 @@ export class RefreshTokenUseCase {
     await this.sessions.revoke(session.id);
 
     const newAccess = await this.tokens.signAccessToken({
-      sub: payload.sub,
-      id: payload.sub,
+      sub: session.userId,
+      id: session.userId,
     });
-    const newRefresh = await this.tokens.signRefreshToken(payload.sub);
+    const newRefresh = CryptoUtil.generateToken(64);
 
     await this.createSession.execute({
-      userId: payload.sub,
+      userId: session.userId,
       refreshToken: newRefresh,
       userAgent: session.userAgent ?? undefined,
       ipAddress: session.ipAddress ?? undefined,

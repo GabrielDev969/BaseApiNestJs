@@ -22,7 +22,6 @@ describe('LoginUseCase', () => {
     } as unknown as jest.Mocked<UsersRepository>;
     tokens = {
       signAccessToken: jest.fn().mockResolvedValue('access-token'),
-      signRefreshToken: jest.fn().mockResolvedValue('refresh-token'),
       signChallengeToken: jest.fn().mockResolvedValue('challenge-token'),
     } as unknown as jest.Mocked<TokenService>;
     createSession = {
@@ -107,35 +106,31 @@ describe('LoginUseCase', () => {
       userAgent: 'ua',
       ipAddress: '10.0.0.1',
     });
-    expect(result).toEqual({
-      accessToken: 'access-token',
-      refreshToken: 'refresh-token',
-    });
+    if ('requires2FA' in result) throw new Error('expected tokens, got 2FA');
+    expect(result.accessToken).toBe('access-token');
+    expect(result.refreshToken).toMatch(/^[0-9a-f]{128}$/);
     expect(metrics.incLoginAttempt).toHaveBeenCalledWith('success');
     expect(createSession.execute).toHaveBeenCalledWith({
       userId: 'u1',
-      refreshToken: 'refresh-token',
+      refreshToken: result.refreshToken,
       userAgent: 'ua',
       ipAddress: '10.0.0.1',
     });
   });
 
-  it('issueTokens persists session and returns tokens', async () => {
+  it('issueTokens persists session and returns an opaque refresh token', async () => {
     const result = await useCase.issueTokens('u1', 'ua', '10.0.0.1');
     expect(tokens.signAccessToken).toHaveBeenCalledWith({
       sub: 'u1',
       id: 'u1',
     });
-    expect(tokens.signRefreshToken).toHaveBeenCalledWith('u1');
+    expect(result.accessToken).toBe('access-token');
+    expect(result.refreshToken).toMatch(/^[0-9a-f]{128}$/);
     expect(createSession.execute).toHaveBeenCalledWith({
       userId: 'u1',
-      refreshToken: 'refresh-token',
+      refreshToken: result.refreshToken,
       userAgent: 'ua',
       ipAddress: '10.0.0.1',
-    });
-    expect(result).toEqual({
-      accessToken: 'access-token',
-      refreshToken: 'refresh-token',
     });
   });
 });

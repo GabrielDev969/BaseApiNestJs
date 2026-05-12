@@ -50,7 +50,11 @@ describe('OAuthStateService', () => {
         type: 'something-else',
         nonce: 'x',
       },
-      { secret: env.JWT_ACCESS_SECRET, expiresIn: '5m' },
+      {
+        privateKey: env.JWT_ACCESS_PRIVATE_KEY,
+        expiresIn: '5m',
+        algorithm: 'RS256',
+      },
     );
 
     await expect(service.verify(token)).rejects.toBeInstanceOf(

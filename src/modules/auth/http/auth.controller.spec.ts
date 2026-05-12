@@ -1,4 +1,5 @@
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { RegisterUseCase } from '../use-cases/register.use-case';
 import { LoginUseCase } from '../use-cases/login.use-case';
@@ -14,7 +15,10 @@ import { ForgotPasswordUseCase } from '../use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from '../use-cases/reset-password.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
+
+function mockRes(): Response {
+  return { cookie: jest.fn(), clearCookie: jest.fn() } as unknown as Response;
+}
 
 describe('AuthController', () => {
   let register: jest.Mocked<RegisterUseCase>;
@@ -98,7 +102,7 @@ describe('AuthController', () => {
     expect(result).toEqual({ id: 'u1', email: dto.email, name: dto.name });
   });
 
-  it('loginEndpoint forwards user-agent and IP from the request', async () => {
+  it('loginEndpoint forwards user-agent and IP, sets cookie, returns only access token', async () => {
     const dto: LoginDto = {
       email: 'jane@example.com',
       password: 'StrongPass@1234',
@@ -107,30 +111,66 @@ describe('AuthController', () => {
       headers: { 'user-agent': 'jest-runner' },
       ip: '10.0.0.1',
     } as unknown as Request;
-    login.execute.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-    });
+    const res = mockRes();
+    login.execute.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
 
-    await controller.loginEndpoint(dto, req);
+    const result = await controller.loginEndpoint(dto, req, res);
 
     expect(login.execute).toHaveBeenCalledWith({
       ...dto,
       userAgent: 'jest-runner',
       ipAddress: '10.0.0.1',
     });
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'r',
+      expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
+    );
+    expect(result).toEqual({ accessToken: 'a' });
   });
 
-  it('refreshEndpoint passes only the refresh token string to RefreshTokenUseCase', async () => {
-    const dto: RefreshDto = { refreshToken: 'rt-1' };
+  it('loginEndpoint returns 2FA challenge without setting the refresh cookie', async () => {
+    const req = { headers: {}, ip: '10.0.0.1' } as unknown as Request;
+    const res = mockRes();
+    login.execute.mockResolvedValue({ requires2FA: true, challenge: 'ch' });
+
+    const result = await controller.loginEndpoint(
+      { email: 'a@b.c', password: 'StrongPass@1234' },
+      req,
+      res,
+    );
+
+    expect(result).toEqual({ requires2FA: true, challenge: 'ch' });
+    expect(res.cookie).not.toHaveBeenCalled();
+  });
+
+  it('refreshEndpoint reads the cookie, rotates it, returns only access token', async () => {
+    const req = { cookies: { refresh_token: 'rt-1' } } as unknown as Request;
+    const res = mockRes();
     refresh.execute.mockResolvedValue({
       accessToken: 'a2',
       refreshToken: 'r2',
     });
 
-    await controller.refreshEndpoint(dto);
+    const result = await controller.refreshEndpoint(req, res);
 
     expect(refresh.execute).toHaveBeenCalledWith('rt-1');
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'r2',
+      expect.any(Object),
+    );
+    expect(result).toEqual({ accessToken: 'a2' });
+  });
+
+  it('refreshEndpoint rejects when the cookie is missing', async () => {
+    const req = { cookies: {} } as unknown as Request;
+    const res = mockRes();
+
+    await expect(controller.refreshEndpoint(req, res)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(refresh.execute).not.toHaveBeenCalled();
   });
 
   it('meEndpoint forwards the user id', async () => {
@@ -167,7 +207,7 @@ describe('AuthController', () => {
     expect(disable2fa.execute).toHaveBeenCalledWith('u1', 'pw', '654321');
   });
 
-  it('verify2faEndpoint forwards challenge, code, ua and ip', async () => {
+  it('verify2faEndpoint forwards challenge, code, ua, ip and sets refresh cookie', async () => {
     verify2fa.execute.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
@@ -176,9 +216,11 @@ describe('AuthController', () => {
       headers: { 'user-agent': 'jest' },
       ip: '10.0.0.1',
     } as unknown as Request;
-    await controller.verify2faEndpoint(
+    const res = mockRes();
+    const result = await controller.verify2faEndpoint(
       { challenge: 'ch', code: '111111' },
       req,
+      res,
     );
     expect(verify2fa.execute).toHaveBeenCalledWith({
       challenge: 'ch',
@@ -186,6 +228,12 @@ describe('AuthController', () => {
       userAgent: 'jest',
       ipAddress: '10.0.0.1',
     });
+    expect(res.cookie).toHaveBeenCalledWith(
+      'refresh_token',
+      'r',
+      expect.any(Object),
+    );
+    expect(result).toEqual({ accessToken: 'a' });
   });
 
   it('requestEmailVerificationEndpoint forwards user id', async () => {

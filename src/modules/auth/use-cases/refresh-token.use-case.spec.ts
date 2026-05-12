@@ -13,9 +13,7 @@ describe('RefreshTokenUseCase', () => {
 
   beforeEach(() => {
     tokens = {
-      verifyRefreshToken: jest.fn(),
       signAccessToken: jest.fn().mockResolvedValue('new-access'),
-      signRefreshToken: jest.fn().mockResolvedValue('new-refresh'),
     } as unknown as jest.Mocked<TokenService>;
     sessions = {
       findByTokenHash: jest.fn(),
@@ -28,25 +26,15 @@ describe('RefreshTokenUseCase', () => {
     useCase = new RefreshTokenUseCase(tokens, sessions, createSession);
   });
 
-  it('throws Unauthorized when token verification fails', async () => {
-    tokens.verifyRefreshToken.mockRejectedValue(new Error('bad'));
-    await expect(useCase.execute('rt')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
-  });
-
-  it('revokes all user sessions and throws when session is missing', async () => {
-    tokens.verifyRefreshToken.mockResolvedValue({ sub: 'u1' });
+  it('throws Unauthorized when no matching session exists for the token hash', async () => {
     sessions.findByTokenHash.mockResolvedValue(null);
     await expect(useCase.execute('rt')).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
-    // session is null so revokeAllForUser is NOT called
     expect(sessions.revokeAllForUser).not.toHaveBeenCalled();
   });
 
-  it('revokes all sessions for the user when token reuse is detected (revoked session)', async () => {
-    tokens.verifyRefreshToken.mockResolvedValue({ sub: 'u1' });
+  it('revokes all sessions for the user when reuse is detected (revoked session)', async () => {
     sessions.findByTokenHash.mockResolvedValue({
       id: 's1',
       userId: 'u1',
@@ -62,7 +50,6 @@ describe('RefreshTokenUseCase', () => {
   });
 
   it('revokes all sessions when the session is expired', async () => {
-    tokens.verifyRefreshToken.mockResolvedValue({ sub: 'u1' });
     sessions.findByTokenHash.mockResolvedValue({
       id: 's1',
       userId: 'u1',
@@ -77,8 +64,7 @@ describe('RefreshTokenUseCase', () => {
     expect(sessions.revokeAllForUser).toHaveBeenCalledWith('u1');
   });
 
-  it('rotates tokens, revokes the old session and creates a new one', async () => {
-    tokens.verifyRefreshToken.mockResolvedValue({ sub: 'u1' });
+  it('rotates the refresh token, revokes the old session and creates a new one', async () => {
     sessions.findByTokenHash.mockResolvedValue({
       id: 's1',
       userId: 'u1',
@@ -95,13 +81,11 @@ describe('RefreshTokenUseCase', () => {
     expect(sessions.revoke).toHaveBeenCalledWith('s1');
     expect(createSession.execute).toHaveBeenCalledWith({
       userId: 'u1',
-      refreshToken: 'new-refresh',
+      refreshToken: expect.any(String),
       userAgent: 'ua',
       ipAddress: '10.0.0.1',
     });
-    expect(result).toEqual({
-      accessToken: 'new-access',
-      refreshToken: 'new-refresh',
-    });
+    expect(result.accessToken).toBe('new-access');
+    expect(result.refreshToken).toMatch(/^[0-9a-f]{128}$/);
   });
 });
