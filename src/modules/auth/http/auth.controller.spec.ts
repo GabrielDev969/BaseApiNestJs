@@ -179,26 +179,26 @@ describe('AuthController', () => {
     expect(getMe.execute).toHaveBeenCalledWith('u1');
   });
 
-  it('setup2faEndpoint forwards the user id', async () => {
+  it('setup2faEndpoint forwards user id and password', async () => {
     setup2fa.execute.mockResolvedValue({
       secret: 'S',
       otpauthUrl: 'otpauth://x',
     });
-    const result = await controller.setup2faEndpoint({
-      id: 'u1',
-      sessionId: 's1',
-    });
-    expect(setup2fa.execute).toHaveBeenCalledWith('u1');
+    const result = await controller.setup2faEndpoint(
+      { id: 'u1', sessionId: 's1' },
+      { password: 'pw' },
+    );
+    expect(setup2fa.execute).toHaveBeenCalledWith('u1', 'pw');
     expect(result.secret).toBe('S');
   });
 
-  it('enable2faEndpoint forwards user id and code', async () => {
+  it('enable2faEndpoint forwards user id, password and code', async () => {
     enable2fa.execute.mockResolvedValue({ recoveryCodes: ['code-1'] });
     await controller.enable2faEndpoint(
       { id: 'u1', sessionId: 's1' },
-      { code: '123456' },
+      { password: 'pw', code: '123456' },
     );
-    expect(enable2fa.execute).toHaveBeenCalledWith('u1', '123456');
+    expect(enable2fa.execute).toHaveBeenCalledWith('u1', 'pw', '123456');
   });
 
   it('disable2faEndpoint forwards user id, password, and code', async () => {

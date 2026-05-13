@@ -8,7 +8,11 @@ import {
 
 export type LoginResult = 'success' | 'failure' | 'requires_2fa';
 export type RegisterResult = 'success' | 'conflict';
-export type TwoFactorEnableResult = 'success' | 'invalid_code' | 'not_found';
+export type TwoFactorEnableResult =
+  | 'success'
+  | 'invalid_code'
+  | 'invalid_password'
+  | 'not_found';
 export type TwoFactorVerifyResult =
   | 'success'
   | 'invalid_challenge'

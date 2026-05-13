@@ -32,6 +32,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { MeResponseDto } from './dto/me-response.dto';
 import { readRefreshCookie, setRefreshCookie } from './refresh-cookie';
+import { SetupTwoFactorDto } from './dto/setup-2fa.dto';
 import { EnableTwoFactorDto } from './dto/enable-2fa.dto';
 import { DisableTwoFactorDto } from './dto/disable-2fa.dto';
 import { VerifyTwoFactorDto } from './dto/verify-2fa.dto';
@@ -157,20 +158,32 @@ export class AuthController {
 
   @ApiBearerAuth()
   @Post('2fa/setup')
+  @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Generate a 2FA secret (call before enable)' })
+  @ApiOperation({
+    summary: 'Generate a 2FA secret (requires current password)',
+  })
+  @ApiBody({ type: SetupTwoFactorDto })
   @ApiResponse({ status: 200, description: 'Returns secret and otpauth URL' })
+  @ApiValidationError()
   @ApiAuthErrors()
+  @ApiRateLimitError()
   @ApiServerError()
-  setup2faEndpoint(@CurrentUser() user: AccessTokenPayload) {
-    return this.setup2fa.execute(user.id);
+  setup2faEndpoint(
+    @CurrentUser() user: AccessTokenPayload,
+    @Body() dto: SetupTwoFactorDto,
+  ) {
+    return this.setup2fa.execute(user.id, dto.password);
   }
 
   @ApiBearerAuth()
   @Post('2fa/enable')
   @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Activate 2FA after verifying first TOTP code' })
+  @ApiOperation({
+    summary:
+      'Activate 2FA after verifying first TOTP code (requires current password)',
+  })
   @ApiBody({ type: EnableTwoFactorDto })
   @ApiResponse({
     status: 200,
@@ -184,7 +197,7 @@ export class AuthController {
     @CurrentUser() user: AccessTokenPayload,
     @Body() dto: EnableTwoFactorDto,
   ) {
-    return this.enable2fa.execute(user.id, dto.code);
+    return this.enable2fa.execute(user.id, dto.password, dto.code);
   }
 
   @ApiBearerAuth()

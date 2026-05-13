@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
+import { CryptoUtil } from '@shared/utils/crypto.util';
 import { TwoFactorService } from '../services/two-factor.service';
 import { MetricsService } from '@shared/metrics/metrics.service';
 
@@ -18,6 +19,7 @@ export class EnableTwoFactorUseCase {
 
   async execute(
     userId: string,
+    password: string,
     code: string,
   ): Promise<{ recoveryCodes: string[] }> {
     const user = await this.users.findById(userId);
@@ -29,6 +31,14 @@ export class EnableTwoFactorUseCase {
       throw new BadRequestException('2FA is already enabled');
     if (!user.twoFactorSecret)
       throw new BadRequestException('Run setup before enabling');
+
+    if (
+      !user.passwordHash ||
+      !(await CryptoUtil.verifyPassword(user.passwordHash, password))
+    ) {
+      this.metrics.incTwoFactorEnable('invalid_password');
+      throw new UnauthorizedException('Invalid password');
+    }
 
     const secret = this.twoFactor.decryptSecret(user.twoFactorSecret);
     if (!this.twoFactor.verifyToken(secret, code)) {
