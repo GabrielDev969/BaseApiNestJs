@@ -10,4 +10,5 @@ export class User {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  anonymizedAt: Date | null;
 }

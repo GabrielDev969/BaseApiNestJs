@@ -41,4 +41,8 @@ export abstract class UsersRepository {
   ): Promise<FindManyResult>;
   abstract update(id: string, data: UpdateUserData): Promise<User>;
   abstract softDelete(id: string): Promise<void>;
+  abstract restore(id: string): Promise<void>;
+  abstract anonymize(id: string): Promise<void>;
+  abstract findByEmailIncludingDeleted(email: string): Promise<User | null>;
+  abstract findPendingAnonymization(cutoff: Date): Promise<User[]>;
 }

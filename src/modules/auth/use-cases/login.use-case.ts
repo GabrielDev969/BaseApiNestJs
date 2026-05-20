@@ -26,7 +26,7 @@ export class LoginUseCase {
   ) {}
 
   async execute(input: LoginInput) {
-    const user = await this.users.findByEmail(input.email);
+    const user = await this.users.findByEmailIncludingDeleted(input.email);
     if (!user || !user.passwordHash) {
       this.metrics.incLoginAttempt('failure');
       throw new UnauthorizedException('Invalid credentials');
@@ -39,6 +39,10 @@ export class LoginUseCase {
     if (!valid) {
       this.metrics.incLoginAttempt('failure');
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.deletedAt) {
+      await this.users.restore(user.id);
     }
 
     if (!user.emailVerifiedAt) {

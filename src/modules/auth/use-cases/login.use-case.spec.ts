@@ -19,6 +19,8 @@ describe('LoginUseCase', () => {
   beforeEach(() => {
     users = {
       findByEmail: jest.fn(),
+      findByEmailIncludingDeleted: jest.fn(),
+      restore: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<UsersRepository>;
     tokens = {
       signAccessToken: jest.fn().mockResolvedValue('access-token'),
@@ -34,7 +36,7 @@ describe('LoginUseCase', () => {
   });
 
   it('rejects unknown email and counts as failure', async () => {
-    users.findByEmail.mockResolvedValue(null);
+    users.findByEmailIncludingDeleted.mockResolvedValue(null);
     await expect(
       useCase.execute({ email: 'a@b.c', password: 'x' }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
@@ -42,7 +44,7 @@ describe('LoginUseCase', () => {
   });
 
   it('rejects users with no passwordHash (OAuth-only) as failure', async () => {
-    users.findByEmail.mockResolvedValue({
+    users.findByEmailIncludingDeleted.mockResolvedValue({
       id: 'u1',
       email: 'a@b.c',
       passwordHash: null,
@@ -54,7 +56,7 @@ describe('LoginUseCase', () => {
   });
 
   it('rejects bad password and counts as failure', async () => {
-    users.findByEmail.mockResolvedValue({
+    users.findByEmailIncludingDeleted.mockResolvedValue({
       id: 'u1',
       passwordHash,
     } as User);
@@ -66,7 +68,7 @@ describe('LoginUseCase', () => {
   });
 
   it('throws Forbidden when email is not verified', async () => {
-    users.findByEmail.mockResolvedValue({
+    users.findByEmailIncludingDeleted.mockResolvedValue({
       id: 'u1',
       passwordHash,
       twoFactorEnabled: false,
@@ -80,7 +82,7 @@ describe('LoginUseCase', () => {
   });
 
   it('returns 2FA challenge and counts as requires_2fa when twoFactorEnabled', async () => {
-    users.findByEmail.mockResolvedValue({
+    users.findByEmailIncludingDeleted.mockResolvedValue({
       id: 'u1',
       passwordHash,
       twoFactorEnabled: true,
@@ -93,7 +95,7 @@ describe('LoginUseCase', () => {
   });
 
   it('issues tokens and counts as success on happy path', async () => {
-    users.findByEmail.mockResolvedValue({
+    users.findByEmailIncludingDeleted.mockResolvedValue({
       id: 'u1',
       passwordHash,
       twoFactorEnabled: false,
@@ -116,6 +118,43 @@ describe('LoginUseCase', () => {
       userAgent: 'ua',
       ipAddress: '10.0.0.1',
     });
+  });
+
+  it('restores a soft-deleted user when credentials are correct, then issues tokens', async () => {
+    users.findByEmailIncludingDeleted.mockResolvedValue({
+      id: 'u1',
+      passwordHash,
+      twoFactorEnabled: false,
+      emailVerifiedAt: new Date(),
+      deletedAt: new Date(),
+      anonymizedAt: null,
+    } as User);
+    jest.spyOn(CryptoUtil, 'verifyPassword').mockResolvedValueOnce(true);
+
+    const result = await useCase.execute({
+      email: 'a@b.c',
+      password: 'right',
+    });
+
+    expect(users.restore).toHaveBeenCalledWith('u1');
+    expect('accessToken' in result && result.accessToken).toBe('access-token');
+    expect(metrics.incLoginAttempt).toHaveBeenCalledWith('success');
+  });
+
+  it('does not call restore when the user is not soft-deleted', async () => {
+    users.findByEmailIncludingDeleted.mockResolvedValue({
+      id: 'u1',
+      passwordHash,
+      twoFactorEnabled: false,
+      emailVerifiedAt: new Date(),
+      deletedAt: null,
+      anonymizedAt: null,
+    } as User);
+    jest.spyOn(CryptoUtil, 'verifyPassword').mockResolvedValueOnce(true);
+
+    await useCase.execute({ email: 'a@b.c', password: 'right' });
+
+    expect(users.restore).not.toHaveBeenCalled();
   });
 
   it('issueTokens persists session first, then signs access with that sessionId', async () => {

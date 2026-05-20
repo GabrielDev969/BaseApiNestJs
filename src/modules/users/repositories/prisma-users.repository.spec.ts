@@ -12,7 +12,16 @@ type UserClient = {
   update: jest.Mock;
 };
 
-type PrismaMock = { user: UserClient };
+type DeleteManyClient = { deleteMany: jest.Mock };
+
+type PrismaMock = {
+  user: UserClient;
+  session: DeleteManyClient;
+  oAuthAccount: DeleteManyClient;
+  emailVerifyToken: DeleteManyClient;
+  passwordResetToken: DeleteManyClient;
+  $transaction: jest.Mock;
+};
 
 describe('PrismaUsersRepository', () => {
   let prisma: PrismaMock;
@@ -26,9 +35,11 @@ describe('PrismaUsersRepository', () => {
     twoFactorEnabled: false,
     twoFactorSecret: null,
     recoveryCodes: null,
+    emailVerifiedAt: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-02T00:00:00Z'),
     deletedAt: null,
+    anonymizedAt: null,
   };
 
   beforeEach(() => {
@@ -40,6 +51,11 @@ describe('PrismaUsersRepository', () => {
         count: jest.fn(),
         update: jest.fn(),
       },
+      session: { deleteMany: jest.fn() },
+      oAuthAccount: { deleteMany: jest.fn() },
+      emailVerifyToken: { deleteMany: jest.fn() },
+      passwordResetToken: { deleteMany: jest.fn() },
+      $transaction: jest.fn().mockResolvedValue([]),
     };
     repo = new PrismaUsersRepository(prisma as unknown as PrismaService);
   });
@@ -165,6 +181,85 @@ describe('PrismaUsersRepository', () => {
       };
       expect(args.where).toEqual({ id: 'u1' });
       expect(args.data.deletedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('restore', () => {
+    it('clears deletedAt', async () => {
+      prisma.user.update.mockResolvedValue(baseUser);
+      await repo.restore('u1');
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { deletedAt: null },
+      });
+    });
+  });
+
+  describe('findByEmailIncludingDeleted', () => {
+    it('returns soft-deleted users but not anonymized', async () => {
+      prisma.user.findFirst.mockResolvedValue(baseUser);
+      await repo.findByEmailIncludingDeleted('jane@example.com');
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: { email: 'jane@example.com', anonymizedAt: null },
+      });
+    });
+  });
+
+  describe('findPendingAnonymization', () => {
+    it('queries users soft-deleted before cutoff and not yet anonymized', async () => {
+      prisma.user.findMany.mockResolvedValue([baseUser]);
+      const cutoff = new Date('2026-04-20');
+      const result = await repo.findPendingAnonymization(cutoff);
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: {
+          deletedAt: { lt: cutoff, not: null },
+          anonymizedAt: null,
+        },
+      });
+      expect(result[0].id).toBe('u1');
+    });
+  });
+
+  describe('anonymize', () => {
+    it('runs a transaction that scrubs PII and deletes related secrets', async () => {
+      await repo.anonymize('u1');
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const ops = prisma.$transaction.mock.calls[0][0] as unknown[];
+      expect(ops).toHaveLength(5);
+      expect(prisma.session.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+      });
+      expect(prisma.oAuthAccount.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+      });
+      expect(prisma.emailVerifyToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+      });
+      expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+      });
+      const userUpdateArgs = prisma.user.update.mock.calls[0][0] as {
+        where: { id: string };
+        data: {
+          email: string;
+          name: string;
+          passwordHash: null;
+          twoFactorEnabled: boolean;
+          twoFactorSecret: null;
+          recoveryCodes: null;
+          emailVerifiedAt: null;
+          anonymizedAt: Date;
+        };
+      };
+      expect(userUpdateArgs.where).toEqual({ id: 'u1' });
+      expect(userUpdateArgs.data.email).toBe('deleted-u1@anonymized.local');
+      expect(userUpdateArgs.data.name).toBe('Deleted User');
+      expect(userUpdateArgs.data.passwordHash).toBeNull();
+      expect(userUpdateArgs.data.twoFactorEnabled).toBe(false);
+      expect(userUpdateArgs.data.twoFactorSecret).toBeNull();
+      expect(userUpdateArgs.data.recoveryCodes).toBeNull();
+      expect(userUpdateArgs.data.emailVerifiedAt).toBeNull();
+      expect(userUpdateArgs.data.anonymizedAt).toBeInstanceOf(Date);
     });
   });
 

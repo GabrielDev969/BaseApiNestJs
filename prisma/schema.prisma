@@ -27,13 +27,15 @@ model User {
   emailVerifyTokens    EmailVerifyToken[]
   passwordResetTokens  PasswordResetToken[]
 
-  deletedAt DateTime?
+  deletedAt     DateTime?
+  anonymizedAt  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([email])
   @@index([deletedAt])
+  @@index([anonymizedAt])
 }
 
 model EmailVerifyToken {

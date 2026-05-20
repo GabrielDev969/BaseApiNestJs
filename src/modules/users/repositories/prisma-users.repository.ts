@@ -43,6 +43,23 @@ export class PrismaUsersRepository extends UsersRepository {
     return user ? this.toEntity(user) : null;
   }
 
+  async findByEmailIncludingDeleted(email: string): Promise<User | null> {
+    const user = await this.prisma.user.findFirst({
+      where: { email, anonymizedAt: null },
+    });
+    return user ? this.toEntity(user) : null;
+  }
+
+  async findPendingAnonymization(cutoff: Date): Promise<User[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        deletedAt: { lt: cutoff, not: null },
+        anonymizedAt: null,
+      },
+    });
+    return users.map((u) => this.toEntity(u));
+  }
+
   @InvalidateCache(CACHE_NS.users)
   async update(id: string, data: UpdateUserData): Promise<User> {
     const user = await this.prisma.user.update({ where: { id }, data });
@@ -55,6 +72,38 @@ export class PrismaUsersRepository extends UsersRepository {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  @InvalidateCache(CACHE_NS.users, CACHE_NS.workspaceMembers)
+  async restore(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
+
+  @InvalidateCache(CACHE_NS.users, CACHE_NS.workspaceMembers, CACHE_NS.sessions)
+  async anonymize(id: string): Promise<void> {
+    const placeholder = `deleted-${id}@anonymized.local`;
+    await this.prisma.$transaction([
+      this.prisma.session.deleteMany({ where: { userId: id } }),
+      this.prisma.oAuthAccount.deleteMany({ where: { userId: id } }),
+      this.prisma.emailVerifyToken.deleteMany({ where: { userId: id } }),
+      this.prisma.passwordResetToken.deleteMany({ where: { userId: id } }),
+      this.prisma.user.update({
+        where: { id },
+        data: {
+          email: placeholder,
+          name: 'Deleted User',
+          passwordHash: null,
+          twoFactorEnabled: false,
+          twoFactorSecret: null,
+          recoveryCodes: null,
+          emailVerifiedAt: null,
+          anonymizedAt: new Date(),
+        },
+      }),
+    ]);
   }
 
   @Cacheable({
@@ -119,6 +168,7 @@ export class PrismaUsersRepository extends UsersRepository {
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,
+      anonymizedAt: raw.anonymizedAt,
     };
   }
 }
