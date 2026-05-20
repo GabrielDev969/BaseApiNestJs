@@ -26,7 +26,6 @@ describe('JwtStrategy', () => {
       findById: jest.fn(),
       findByTokenHash: jest.fn(),
       findActiveByUser: jest.fn(),
-      updateLastUsed: jest.fn(),
       revoke: jest.fn(),
       revokeAllForUser: jest.fn(),
       deleteExpired: jest.fn(),

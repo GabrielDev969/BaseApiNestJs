@@ -126,19 +126,6 @@ describe('PrismaSessionsRepository', () => {
     });
   });
 
-  describe('updateLastUsed', () => {
-    it('updates lastUsedAt to a Date', async () => {
-      prisma.session.update.mockResolvedValue(baseRow);
-      await repo.updateLastUsed('s1');
-      const args = prisma.session.update.mock.calls[0][0] as {
-        where: { id: string };
-        data: { lastUsedAt: Date };
-      };
-      expect(args.where).toEqual({ id: 's1' });
-      expect(args.data.lastUsedAt).toBeInstanceOf(Date);
-    });
-  });
-
   describe('revoke', () => {
     it('updates revokedAt to a Date', async () => {
       prisma.session.update.mockResolvedValue(baseRow);

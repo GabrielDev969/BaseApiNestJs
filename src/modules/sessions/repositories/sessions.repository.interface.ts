@@ -13,7 +13,6 @@ export abstract class SessionsRepository {
   abstract findById(id: string): Promise<Session | null>;
   abstract findByTokenHash(tokenHash: string): Promise<Session | null>;
   abstract findActiveByUser(userId: string): Promise<Session[]>;
-  abstract updateLastUsed(id: string): Promise<void>;
   abstract revoke(id: string): Promise<void>;
   abstract revokeAllForUser(
     userId: string,

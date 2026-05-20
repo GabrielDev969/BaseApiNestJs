@@ -50,13 +50,6 @@ export class PrismaSessionsRepository extends SessionsRepository {
     return sessions.map((s) => this.toEntity(s));
   }
 
-  async updateLastUsed(id: string): Promise<void> {
-    await this.prisma.session.update({
-      where: { id },
-      data: { lastUsedAt: new Date() },
-    });
-  }
-
   @InvalidateCache(CACHE_NS.sessions)
   async revoke(id: string): Promise<void> {
     await this.prisma.session.update({
