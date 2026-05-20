@@ -5,14 +5,14 @@ export interface CreateInvitationData {
   workspaceId: string;
   roleId: string;
   invitedById: string;
-  token: string;
+  tokenHash: string;
   expiresAt: Date;
 }
 
 export abstract class InvitationsRepository {
   abstract create(data: CreateInvitationData): Promise<Invitation>;
   abstract findById(id: string): Promise<Invitation | null>;
-  abstract findByToken(token: string): Promise<Invitation | null>;
+  abstract findByTokenHash(tokenHash: string): Promise<Invitation | null>;
   abstract findManyByWorkspace(workspaceId: string): Promise<Invitation[]>;
   abstract findPendingByEmailAndWorkspace(
     email: string,

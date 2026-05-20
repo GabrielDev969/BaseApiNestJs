@@ -22,7 +22,7 @@ describe('PrismaInvitationsRepository', () => {
     workspaceId: 'w1',
     roleId: 'r1',
     invitedById: 'u1',
-    token: 'tok',
+    tokenHash: 'hash',
     expiresAt: new Date('2026-12-31'),
     acceptedAt: null,
     createdAt: new Date('2026-01-01'),
@@ -51,7 +51,7 @@ describe('PrismaInvitationsRepository', () => {
         workspaceId: 'w1',
         roleId: 'r1',
         invitedById: 'u1',
-        token: 'tok',
+        tokenHash: 'hash',
         expiresAt: baseRow.expiresAt,
       });
 
@@ -78,19 +78,19 @@ describe('PrismaInvitationsRepository', () => {
     });
   });
 
-  describe('findByToken', () => {
+  describe('findByTokenHash', () => {
     it('returns mapped entity', async () => {
       prisma.invitation.findUnique.mockResolvedValue(baseRow);
-      const result = await repo.findByToken('tok');
+      const result = await repo.findByTokenHash('hash');
       expect(prisma.invitation.findUnique).toHaveBeenCalledWith({
-        where: { token: 'tok' },
+        where: { tokenHash: 'hash' },
       });
-      expect(result?.token).toBe('tok');
+      expect(result?.tokenHash).toBe('hash');
     });
 
     it('returns null when not found', async () => {
       prisma.invitation.findUnique.mockResolvedValue(null);
-      expect(await repo.findByToken('missing')).toBeNull();
+      expect(await repo.findByTokenHash('missing')).toBeNull();
     });
   });
 

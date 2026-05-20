@@ -40,7 +40,7 @@ export class InvitationResponseDto {
 
 export function toInvitationDto(
   invitation: Invitation,
-  options: { includeToken?: boolean } = {},
+  options: { rawToken?: string } = {},
 ): InvitationResponseDto {
   return {
     id: invitation.id,
@@ -48,7 +48,7 @@ export function toInvitationDto(
     workspaceId: invitation.workspaceId,
     roleId: invitation.roleId,
     invitedById: invitation.invitedById,
-    ...(options.includeToken ? { token: invitation.token } : {}),
+    ...(options.rawToken ? { token: options.rawToken } : {}),
     expiresAt: invitation.expiresAt,
     acceptedAt: invitation.acceptedAt,
     createdAt: invitation.createdAt,

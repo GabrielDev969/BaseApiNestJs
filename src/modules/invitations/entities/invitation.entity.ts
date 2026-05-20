@@ -4,7 +4,7 @@ export class Invitation {
   workspaceId: string;
   roleId: string;
   invitedById: string;
-  token: string;
+  tokenHash: string;
   expiresAt: Date;
   acceptedAt: Date | null;
   createdAt: Date;

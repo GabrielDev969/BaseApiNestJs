@@ -23,8 +23,10 @@ export class PrismaInvitationsRepository extends InvitationsRepository {
     return found ? this.toEntity(found) : null;
   }
 
-  async findByToken(token: string): Promise<Invitation | null> {
-    const found = await this.prisma.invitation.findUnique({ where: { token } });
+  async findByTokenHash(tokenHash: string): Promise<Invitation | null> {
+    const found = await this.prisma.invitation.findUnique({
+      where: { tokenHash },
+    });
     return found ? this.toEntity(found) : null;
   }
 
@@ -69,7 +71,7 @@ export class PrismaInvitationsRepository extends InvitationsRepository {
       workspaceId: raw.workspaceId,
       roleId: raw.roleId,
       invitedById: raw.invitedById,
-      token: raw.token,
+      tokenHash: raw.tokenHash,
       expiresAt: raw.expiresAt,
       acceptedAt: raw.acceptedAt,
       createdAt: raw.createdAt,
