@@ -19,6 +19,7 @@ import { RequestEmailVerificationUseCase } from './use-cases/request-email-verif
 import { VerifyEmailUseCase } from './use-cases/verify-email.use-case';
 import { ForgotPasswordUseCase } from './use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from './use-cases/reset-password.use-case';
+import { CleanupExpiredTokensUseCase } from './use-cases/cleanup-expired-tokens.use-case';
 import { EmailVerifyTokensRepository } from './repositories/email-verify-tokens.repository.interface';
 import { PrismaEmailVerifyTokensRepository } from './repositories/prisma-email-verify-tokens.repository';
 import { PasswordResetTokensRepository } from './repositories/password-reset-tokens.repository.interface';
@@ -50,6 +51,7 @@ import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
     VerifyEmailUseCase,
     ForgotPasswordUseCase,
     ResetPasswordUseCase,
+    CleanupExpiredTokensUseCase,
     {
       provide: EmailVerifyTokensRepository,
       useClass: PrismaEmailVerifyTokensRepository,
@@ -59,6 +61,6 @@ import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
       useClass: PrismaPasswordResetTokensRepository,
     },
   ],
-  exports: [LoginUseCase, TokenService],
+  exports: [LoginUseCase, TokenService, CleanupExpiredTokensUseCase],
 })
 export class AuthModule {}

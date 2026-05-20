@@ -27,6 +27,7 @@ import { SessionsModule } from '@modules/sessions/sessions.module';
 import { InvitationsModule } from '@modules/invitations/invitations.module';
 import { HealthModule } from '@modules/health/health.module';
 import { OAuthModule } from '@modules/oauth/oauth.module';
+import { MaintenanceModule } from '@shared/maintenance/maintenance.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { OAuthModule } from '@modules/oauth/oauth.module';
     AuditModule,
     HealthModule,
     OAuthModule,
+    MaintenanceModule,
   ],
   controllers: [],
   providers: [

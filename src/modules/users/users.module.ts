@@ -7,8 +7,6 @@ import { CreateUserUseCase } from './use-cases/create-user.use-case';
 import { UpdateUserUseCase } from './use-cases/update-user.use-case';
 import { DeleteUserUseCase } from './use-cases/delete-user.use-case';
 import { AnonymizeExpiredUsersUseCase } from './use-cases/anonymize-expired-users.use-case';
-import { MaintenanceProcessor } from './maintenance/maintenance.processor';
-import { MaintenanceScheduler } from './maintenance/maintenance.scheduler';
 import { UsersController } from './http/users.controller';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RbacModule } from '@modules/rbac/rbac.module';
@@ -24,9 +22,7 @@ import { RbacModule } from '@modules/rbac/rbac.module';
     UpdateUserUseCase,
     DeleteUserUseCase,
     AnonymizeExpiredUsersUseCase,
-    MaintenanceProcessor,
-    MaintenanceScheduler,
   ],
-  exports: [UsersRepository],
+  exports: [UsersRepository, AnonymizeExpiredUsersUseCase],
 })
 export class UsersModule {}
