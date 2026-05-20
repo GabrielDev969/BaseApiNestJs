@@ -12,6 +12,9 @@ import { LoginUseCase } from '@modules/auth/use-cases/login.use-case';
 import { CreateWorkspaceUseCase } from '@modules/workspaces/use-cases/create-workspace.use-case';
 import { AuditService } from '@modules/audit/services/audit.service';
 import { User } from '@modules/users/entities/user.entity';
+import { CryptoUtil } from '@shared/utils/crypto.util';
+
+const validNonceHash = CryptoUtil.hashToken('n');
 
 interface Mocks {
   registry: jest.Mocked<OAuthProviderRegistry>;
@@ -93,6 +96,43 @@ const profile = {
 };
 
 describe('HandleOAuthCallbackUseCase', () => {
+  it('rejects when expectedNonceHash is missing (cookie absent)', async () => {
+    const { useCase, mocks } = setup();
+    mocks.state.verify.mockResolvedValue({
+      type: 'oauth-state',
+      provider: 'google',
+      intent: 'login',
+      nonce: 'n',
+    });
+
+    await expect(
+      useCase.execute({ provider: 'google', code: 'c', state: 's' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(mocks.exchange).not.toHaveBeenCalled();
+  });
+
+  it('rejects when cookie hash does not match state.nonce', async () => {
+    const { useCase, mocks } = setup();
+    mocks.state.verify.mockResolvedValue({
+      type: 'oauth-state',
+      provider: 'google',
+      intent: 'login',
+      nonce: 'n',
+    });
+
+    await expect(
+      useCase.execute({
+        provider: 'google',
+        code: 'c',
+        state: 's',
+        expectedNonceHash: CryptoUtil.hashToken('different-nonce'),
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(mocks.exchange).not.toHaveBeenCalled();
+  });
+
   it('rejects when state.provider does not match the URL provider', async () => {
     const { useCase, mocks } = setup();
     mocks.state.verify.mockResolvedValue({
@@ -103,7 +143,12 @@ describe('HandleOAuthCallbackUseCase', () => {
     });
 
     await expect(
-      useCase.execute({ provider: 'google', code: 'c', state: 's' }),
+      useCase.execute({
+        provider: 'google',
+        code: 'c',
+        state: 's',
+        expectedNonceHash: validNonceHash,
+      }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
     expect(mocks.exchange).not.toHaveBeenCalled();
@@ -121,7 +166,12 @@ describe('HandleOAuthCallbackUseCase', () => {
       mocks.exchange.mockResolvedValue(profile);
 
       await expect(
-        useCase.execute({ provider: 'google', code: 'c', state: 's' }),
+        useCase.execute({
+          provider: 'google',
+          code: 'c',
+          state: 's',
+          expectedNonceHash: validNonceHash,
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -144,7 +194,12 @@ describe('HandleOAuthCallbackUseCase', () => {
       });
 
       await expect(
-        useCase.execute({ provider: 'google', code: 'c', state: 's' }),
+        useCase.execute({
+          provider: 'google',
+          code: 'c',
+          state: 's',
+          expectedNonceHash: validNonceHash,
+        }),
       ).rejects.toBeInstanceOf(ConflictException);
 
       expect(mocks.accounts.create).not.toHaveBeenCalled();
@@ -172,6 +227,7 @@ describe('HandleOAuthCallbackUseCase', () => {
         provider: 'google',
         code: 'c',
         state: 's',
+        expectedNonceHash: validNonceHash,
       });
 
       expect(result).toEqual({
@@ -206,6 +262,7 @@ describe('HandleOAuthCallbackUseCase', () => {
         provider: 'google',
         code: 'c',
         state: 's',
+        expectedNonceHash: validNonceHash,
       });
 
       expect(mocks.accounts.create).toHaveBeenCalledWith({
@@ -258,6 +315,7 @@ describe('HandleOAuthCallbackUseCase', () => {
         provider: 'google',
         code: 'c',
         state: 's',
+        expectedNonceHash: validNonceHash,
         userAgent: 'ua',
         ipAddress: '1.1.1.1',
       });
@@ -286,7 +344,12 @@ describe('HandleOAuthCallbackUseCase', () => {
       mocks.users.findByEmail.mockResolvedValue({ id: 'existing' } as User);
 
       await expect(
-        useCase.execute({ provider: 'google', code: 'c', state: 's' }),
+        useCase.execute({
+          provider: 'google',
+          code: 'c',
+          state: 's',
+          expectedNonceHash: validNonceHash,
+        }),
       ).rejects.toBeInstanceOf(ConflictException);
 
       expect(mocks.users.create).not.toHaveBeenCalled();
@@ -313,6 +376,7 @@ describe('HandleOAuthCallbackUseCase', () => {
         provider: 'google',
         code: 'c',
         state: 's',
+        expectedNonceHash: validNonceHash,
       });
 
       expect(mocks.users.create).toHaveBeenCalledWith({

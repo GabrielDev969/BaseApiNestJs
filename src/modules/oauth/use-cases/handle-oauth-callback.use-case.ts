@@ -12,11 +12,13 @@ import { OAuthProviderName } from '../constants/providers';
 import { OAuthAccountsRepository } from '../repositories/oauth-accounts.repository.interface';
 import { OAuthProviderRegistry } from '../services/oauth-provider-registry';
 import { OAuthStateService } from '../services/oauth-state.service';
+import { CryptoUtil } from '@shared/utils/crypto.util';
 
 interface HandleCallbackInput {
   provider: OAuthProviderName;
   code: string;
   state: string;
+  expectedNonceHash?: string;
   userAgent?: string;
   ipAddress?: string;
 }
@@ -51,6 +53,14 @@ export class HandleOAuthCallbackUseCase {
     const state = await this.stateService.verify(input.state);
     if (state.provider !== input.provider) {
       throw new UnauthorizedException('OAuth state does not match provider');
+    }
+    if (
+      !input.expectedNonceHash ||
+      CryptoUtil.hashToken(state.nonce) !== input.expectedNonceHash
+    ) {
+      throw new UnauthorizedException(
+        'OAuth state was not initiated from this browser',
+      );
     }
 
     const provider = this.registry.get(input.provider);

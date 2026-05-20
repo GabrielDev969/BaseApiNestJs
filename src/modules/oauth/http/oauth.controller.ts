@@ -25,6 +25,12 @@ import { setRefreshCookie } from '@modules/auth/http/refresh-cookie';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
+import { CryptoUtil } from '@shared/utils/crypto.util';
+import {
+  clearOAuthStateCookie,
+  readOAuthStateCookie,
+  setOAuthStateCookie,
+} from './oauth-state-cookie';
 import {
   ApiAuthErrors,
   ApiNotFoundError,
@@ -71,15 +77,18 @@ export class OAuthController {
   @ApiValidationError()
   @ApiRateLimitError()
   @ApiServerError()
-  loginStart(
+  async loginStart(
     @Param('provider') providerParam: string,
     @Query() query: StartOAuthDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.startOAuth.execute({
+    const { authorizationUrl, nonce } = await this.startOAuth.execute({
       provider: parseProvider(providerParam),
       intent: 'login',
       redirectUri: query.redirectUri,
     });
+    setOAuthStateCookie(res, CryptoUtil.hashToken(nonce));
+    return { authorizationUrl };
   }
 
   @ApiBearerAuth()
@@ -98,17 +107,20 @@ export class OAuthController {
   @ApiAuthErrors()
   @ApiRateLimitError()
   @ApiServerError()
-  linkStart(
+  async linkStart(
     @Param('provider') providerParam: string,
     @Body() body: StartOAuthDto,
     @CurrentUser() user: AccessTokenPayload,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.startOAuth.execute({
+    const { authorizationUrl, nonce } = await this.startOAuth.execute({
       provider: parseProvider(providerParam),
       intent: 'link',
       userId: user.id,
       redirectUri: body.redirectUri,
     });
+    setOAuthStateCookie(res, CryptoUtil.hashToken(nonce));
+    return { authorizationUrl };
   }
 
   @Public()
@@ -132,18 +144,24 @@ export class OAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.handleCallback.execute({
-      provider: parseProvider(providerParam),
-      code: body.code,
-      state: body.state,
-      userAgent: req.headers['user-agent'],
-      ipAddress: req.ip,
-    });
-    if (result.intent === 'login') {
-      setRefreshCookie(res, result.refreshToken);
-      return { intent: result.intent, accessToken: result.accessToken };
+    const expectedNonceHash = readOAuthStateCookie(req);
+    try {
+      const result = await this.handleCallback.execute({
+        provider: parseProvider(providerParam),
+        code: body.code,
+        state: body.state,
+        expectedNonceHash,
+        userAgent: req.headers['user-agent'],
+        ipAddress: req.ip,
+      });
+      if (result.intent === 'login') {
+        setRefreshCookie(res, result.refreshToken);
+        return { intent: result.intent, accessToken: result.accessToken };
+      }
+      return result;
+    } finally {
+      clearOAuthStateCookie(res);
     }
-    return result;
   }
 
   @ApiBearerAuth()

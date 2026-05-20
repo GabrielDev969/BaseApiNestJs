@@ -19,12 +19,15 @@ export interface OAuthStatePayload {
 export class OAuthStateService {
   constructor(private jwt: JwtService) {}
 
-  sign(payload: Omit<OAuthStatePayload, 'type' | 'nonce'>): Promise<string> {
-    return this.jwt.signAsync(
+  async sign(
+    payload: Omit<OAuthStatePayload, 'type' | 'nonce'>,
+  ): Promise<{ state: string; nonce: string }> {
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const state = await this.jwt.signAsync(
       {
         ...payload,
         type: 'oauth-state' as const,
-        nonce: crypto.randomBytes(16).toString('hex'),
+        nonce,
       },
       {
         privateKey: env.JWT_ACCESS_PRIVATE_KEY,
@@ -32,6 +35,7 @@ export class OAuthStateService {
         algorithm: 'RS256',
       },
     );
+    return { state, nonce };
   }
 
   async verify(token: string): Promise<OAuthStatePayload> {

@@ -20,14 +20,16 @@ export class StartOAuthUseCase {
     private state: OAuthStateService,
   ) {}
 
-  async execute(input: StartOAuthInput): Promise<{ authorizationUrl: string }> {
+  async execute(
+    input: StartOAuthInput,
+  ): Promise<{ authorizationUrl: string; nonce: string }> {
     const provider = this.registry.get(input.provider);
-    const state = await this.state.sign({
+    const { state, nonce } = await this.state.sign({
       provider: input.provider,
       intent: input.intent,
       userId: input.userId,
       redirectUri: input.redirectUri,
     });
-    return { authorizationUrl: provider.getAuthorizationUrl(state) };
+    return { authorizationUrl: provider.getAuthorizationUrl(state), nonce };
   }
 }

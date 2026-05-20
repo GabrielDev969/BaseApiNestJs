@@ -3,7 +3,7 @@ import { OAuthProviderRegistry } from '../services/oauth-provider-registry';
 import { OAuthStateService } from '../services/oauth-state.service';
 
 describe('StartOAuthUseCase', () => {
-  it('signs state and returns the provider authorization URL', async () => {
+  it('signs state and returns the provider authorization URL plus raw nonce', async () => {
     const provider = {
       getAuthorizationUrl: jest
         .fn()
@@ -15,7 +15,7 @@ describe('StartOAuthUseCase', () => {
       get: jest.fn().mockReturnValue(provider),
     } as unknown as jest.Mocked<OAuthProviderRegistry>;
     const state = {
-      sign: jest.fn().mockResolvedValue('signed'),
+      sign: jest.fn().mockResolvedValue({ state: 'signed', nonce: 'n-1' }),
     } as unknown as jest.Mocked<OAuthStateService>;
 
     const useCase = new StartOAuthUseCase(registry, state);
@@ -36,6 +36,7 @@ describe('StartOAuthUseCase', () => {
     expect(result).toEqual({
       authorizationUrl:
         'https://accounts.google.com/o/oauth2/v2/auth?state=signed',
+      nonce: 'n-1',
     });
   });
 
@@ -45,7 +46,7 @@ describe('StartOAuthUseCase', () => {
       get: jest.fn().mockReturnValue(provider),
     } as unknown as jest.Mocked<OAuthProviderRegistry>;
     const state = {
-      sign: jest.fn().mockResolvedValue('s'),
+      sign: jest.fn().mockResolvedValue({ state: 's', nonce: 'n-2' }),
     } as unknown as jest.Mocked<OAuthStateService>;
 
     const useCase = new StartOAuthUseCase(registry, state);
