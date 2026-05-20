@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { UsersRepository } from './repositories/users.repository.interface';
 import { PrismaUsersRepository } from './repositories/prisma-users.repository';
 import { ListUsersUseCase } from './use-cases/list-users.use-case';
@@ -14,7 +14,7 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { RbacModule } from '@modules/rbac/rbac.module';
 
 @Module({
-  imports: [WorkspacesModule, RbacModule],
+  imports: [forwardRef(() => WorkspacesModule), RbacModule],
   controllers: [UsersController],
   providers: [
     { provide: UsersRepository, useClass: PrismaUsersRepository },

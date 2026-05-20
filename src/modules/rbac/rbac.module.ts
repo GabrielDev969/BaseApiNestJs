@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { RolesRepository } from './repositories/roles.repository.interface';
 import { PermissionsRepository } from './repositories/permissions.repository.interface';
 import { PrismaRolesRepository } from './repositories/prisma-roles.repository';
@@ -12,7 +12,7 @@ import { AssignPermissionToRoleUseCase } from './use-cases/assign-permission-to-
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 
 @Module({
-  imports: [WorkspacesModule],
+  imports: [forwardRef(() => WorkspacesModule)],
   controllers: [RbacController],
   providers: [
     { provide: RolesRepository, useClass: PrismaRolesRepository },
