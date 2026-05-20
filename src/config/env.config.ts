@@ -136,6 +136,16 @@ const envSchema = z
       message: 'CORS_ORIGINS must be set (non-empty) when NODE_ENV=production',
     },
   )
+  .refine(
+    (data) =>
+      data.NODE_ENV !== 'production' ||
+      (data.METRICS_ALLOWED_IPS !== undefined &&
+        data.METRICS_ALLOWED_IPS.length > 0),
+    {
+      message:
+        'METRICS_ALLOWED_IPS must be set (non-empty) when NODE_ENV=production',
+    },
+  )
   .refine((data) => data.EMAIL_PROVIDER !== 'resend' || !!data.RESEND_API_KEY, {
     message: 'RESEND_API_KEY must be set when EMAIL_PROVIDER=resend',
   });

@@ -46,6 +46,7 @@ import { ListOAuthAccountsUseCase } from '../use-cases/list-oauth-accounts.use-c
 import { UnlinkOAuthAccountUseCase } from '../use-cases/unlink-oauth-account.use-case';
 import { OAuthCallbackDto } from './dto/oauth-callback.dto';
 import { StartOAuthDto } from './dto/start-oauth.dto';
+import { LinkOAuthDto } from './dto/link-oauth.dto';
 
 function parseProvider(value: string): OAuthProviderName {
   if (!isOAuthProviderName(value)) {
@@ -101,7 +102,7 @@ export class OAuthController {
     enum: ['google', 'github'],
     description: 'OAuth provider name',
   })
-  @ApiBody({ type: StartOAuthDto })
+  @ApiBody({ type: LinkOAuthDto })
   @ApiResponse({ status: 200, description: 'Authorization URL to redirect to' })
   @ApiValidationError()
   @ApiAuthErrors()
@@ -109,7 +110,7 @@ export class OAuthController {
   @ApiServerError()
   async linkStart(
     @Param('provider') providerParam: string,
-    @Body() body: StartOAuthDto,
+    @Body() body: LinkOAuthDto,
     @CurrentUser() user: AccessTokenPayload,
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -117,6 +118,7 @@ export class OAuthController {
       provider: parseProvider(providerParam),
       intent: 'link',
       userId: user.id,
+      password: body.password,
       redirectUri: body.redirectUri,
     });
     setOAuthStateCookie(res, CryptoUtil.hashToken(nonce));

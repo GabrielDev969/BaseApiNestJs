@@ -21,9 +21,18 @@ describe('MetricsIpAllowlistGuard', () => {
     (env as { METRICS_ALLOWED_IPS?: string[] }).METRICS_ALLOWED_IPS = original;
   });
 
-  it('allows any IP when allowlist is unset', () => {
+  it('denies (default deny) when allowlist is unset', () => {
     (env as { METRICS_ALLOWED_IPS?: string[] }).METRICS_ALLOWED_IPS = undefined;
-    expect(guard.canActivate(makeCtx('1.2.3.4'))).toBe(true);
+    expect(() => guard.canActivate(makeCtx('1.2.3.4'))).toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('denies (default deny) when allowlist is empty', () => {
+    (env as { METRICS_ALLOWED_IPS?: string[] }).METRICS_ALLOWED_IPS = [];
+    expect(() => guard.canActivate(makeCtx('1.2.3.4'))).toThrow(
+      ForbiddenException,
+    );
   });
 
   it('allows IPs that are in the allowlist', () => {

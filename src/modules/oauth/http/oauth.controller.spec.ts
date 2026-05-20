@@ -79,7 +79,7 @@ describe('OAuthController', () => {
     ).rejects.toThrow('Unsupported OAuth provider "myspace"');
   });
 
-  it('linkStart attaches the user id, link intent, and sets cookie', async () => {
+  it('linkStart forwards password + user id, sets cookie, omits nonce from response', async () => {
     startOAuth.execute.mockResolvedValue({
       authorizationUrl: 'https://github.com/auth',
       nonce: 'n-link',
@@ -87,7 +87,7 @@ describe('OAuthController', () => {
     const res = mockRes();
     await controller.linkStart(
       'github',
-      { redirectUri: 'http://app/cb' },
+      { password: 'StrongPass@1', redirectUri: 'http://app/cb' },
       { id: 'u1', sessionId: 's1' },
       res,
     );
@@ -95,6 +95,7 @@ describe('OAuthController', () => {
       provider: 'github',
       intent: 'link',
       userId: 'u1',
+      password: 'StrongPass@1',
       redirectUri: 'http://app/cb',
     });
     expect(res.cookie).toHaveBeenCalledWith(
