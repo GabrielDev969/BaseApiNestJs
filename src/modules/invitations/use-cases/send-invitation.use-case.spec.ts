@@ -22,7 +22,7 @@ describe('SendInvitationUseCase', () => {
     invitations = {
       create: jest.fn(),
       findById: jest.fn(),
-      findByToken: jest.fn(),
+      findByTokenHash: jest.fn(),
       findManyByWorkspace: jest.fn(),
       findPendingByEmailAndWorkspace: jest.fn(),
       markAsAccepted: jest.fn(),
@@ -91,7 +91,7 @@ describe('SendInvitationUseCase', () => {
     invitedById: 'inviter',
   };
 
-  it('creates an invitation with a unique token and TTL of 7 days', async () => {
+  it('persists only the token hash and returns the raw token, with 7-day TTL', async () => {
     roles.findByIdInWorkspace.mockResolvedValue(role);
     users.findByEmail.mockResolvedValue(null);
     invitations.findPendingByEmailAndWorkspace.mockResolvedValue(null);
@@ -104,14 +104,23 @@ describe('SendInvitationUseCase', () => {
       }),
     );
 
-    await useCase.execute(input);
+    const result = await useCase.execute(input);
 
     const createArg = invitations.create.mock.calls[0][0];
     expect(createArg.email).toBe(input.email);
     expect(createArg.workspaceId).toBe(input.workspaceId);
     expect(createArg.roleId).toBe(input.roleId);
     expect(createArg.invitedById).toBe(input.invitedById);
-    expect(createArg.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(createArg.tokenHash).toMatch(/^[0-9a-f]{64}$/);
+
+    expect(result.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.token).not.toBe(createArg.tokenHash);
+    const { CryptoUtil } = require('@shared/utils/crypto.util') as {
+      CryptoUtil: { hashToken(t: string): string };
+    };
+    expect(CryptoUtil.hashToken(result.token as string)).toBe(
+      createArg.tokenHash,
+    );
 
     const ttlMs = createArg.expiresAt.getTime() - Date.now();
     expect(ttlMs).toBeGreaterThan(6.9 * 24 * 60 * 60 * 1000);

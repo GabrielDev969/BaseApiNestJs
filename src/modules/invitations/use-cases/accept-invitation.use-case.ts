@@ -8,6 +8,7 @@ import {
 import { InvitationsRepository } from '../repositories/invitations.repository.interface';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { WorkspaceMembersRepository } from '@modules/workspaces/repositories/workspace-members.repository.interface';
+import { CryptoUtil } from '@shared/utils/crypto.util';
 
 interface AcceptInvitationInput {
   token: string;
@@ -28,7 +29,8 @@ export class AcceptInvitationUseCase {
   ) {}
 
   async execute(input: AcceptInvitationInput): Promise<AcceptInvitationResult> {
-    const invitation = await this.invitations.findByToken(input.token);
+    const tokenHash = CryptoUtil.hashToken(input.token);
+    const invitation = await this.invitations.findByTokenHash(tokenHash);
     if (!invitation) throw new NotFoundException('Invitation not found');
     if (invitation.acceptedAt)
       throw new BadRequestException('Invitation has already been accepted');

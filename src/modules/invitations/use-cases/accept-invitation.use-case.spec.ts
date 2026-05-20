@@ -23,7 +23,7 @@ describe('AcceptInvitationUseCase', () => {
     workspaceId: 'w1',
     roleId: 'r1',
     invitedById: 'inviter',
-    token: 'tok',
+    tokenHash: 'hash',
     expiresAt: new Date(Date.now() + 60_000),
     acceptedAt: null,
     createdAt: new Date(),
@@ -48,7 +48,7 @@ describe('AcceptInvitationUseCase', () => {
     invitations = {
       create: jest.fn(),
       findById: jest.fn(),
-      findByToken: jest.fn(),
+      findByTokenHash: jest.fn(),
       findManyByWorkspace: jest.fn(),
       findPendingByEmailAndWorkspace: jest.fn(),
       markAsAccepted: jest.fn(),
@@ -77,7 +77,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('creates membership and marks invitation as accepted', async () => {
-    invitations.findByToken.mockResolvedValue(baseInvitation());
+    invitations.findByTokenHash.mockResolvedValue(baseInvitation());
     users.findById.mockResolvedValue(baseUser());
     members.findByUserAndWorkspace.mockResolvedValue(null);
 
@@ -93,7 +93,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('throws 404 when token is invalid', async () => {
-    invitations.findByToken.mockResolvedValue(null);
+    invitations.findByTokenHash.mockResolvedValue(null);
 
     await expect(
       useCase.execute({ token: 'bad', userId: 'u1' }),
@@ -101,7 +101,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('throws 400 when invitation is expired', async () => {
-    invitations.findByToken.mockResolvedValue(
+    invitations.findByTokenHash.mockResolvedValue(
       baseInvitation({ expiresAt: new Date(Date.now() - 60_000) }),
     );
 
@@ -112,7 +112,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('throws 400 when invitation was already accepted', async () => {
-    invitations.findByToken.mockResolvedValue(
+    invitations.findByTokenHash.mockResolvedValue(
       baseInvitation({ acceptedAt: new Date() }),
     );
 
@@ -122,7 +122,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('throws 404 when authenticated user no longer exists', async () => {
-    invitations.findByToken.mockResolvedValue(baseInvitation());
+    invitations.findByTokenHash.mockResolvedValue(baseInvitation());
     users.findById.mockResolvedValue(null);
     await expect(
       useCase.execute({ token: 'tok', userId: 'gone' }),
@@ -131,7 +131,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('throws 403 when logged-in email differs from invitation email', async () => {
-    invitations.findByToken.mockResolvedValue(baseInvitation());
+    invitations.findByTokenHash.mockResolvedValue(baseInvitation());
     users.findById.mockResolvedValue(baseUser({ email: 'other@example.com' }));
 
     await expect(
@@ -141,7 +141,7 @@ describe('AcceptInvitationUseCase', () => {
   });
 
   it('throws 409 when user is already a member of the workspace', async () => {
-    invitations.findByToken.mockResolvedValue(baseInvitation());
+    invitations.findByTokenHash.mockResolvedValue(baseInvitation());
     users.findById.mockResolvedValue(baseUser());
     members.findByUserAndWorkspace.mockResolvedValue({
       id: 'm1',

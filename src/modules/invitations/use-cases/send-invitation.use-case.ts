@@ -67,7 +67,8 @@ export class SendInvitationUseCase {
         'A pending invitation already exists for this email',
       );
 
-    const token = CryptoUtil.generateToken(32);
+    const rawToken = CryptoUtil.generateToken(32);
+    const tokenHash = CryptoUtil.hashToken(rawToken);
     const expiresAt = new Date(
       Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
     );
@@ -77,7 +78,7 @@ export class SendInvitationUseCase {
       workspaceId: input.workspaceId,
       roleId: input.roleId,
       invitedById: input.invitedById,
-      token,
+      tokenHash,
       expiresAt,
     });
 
@@ -88,10 +89,10 @@ export class SendInvitationUseCase {
     const message = invitationEmail({
       workspaceName: workspace?.name ?? 'a workspace',
       invitedBy: inviter?.name ?? 'A teammate',
-      acceptUrl: buildAcceptInvitationUrl(token),
+      acceptUrl: buildAcceptInvitationUrl(rawToken),
     });
     await this.emailDispatcher.enqueue({ to: input.email, ...message });
 
-    return toInvitationDto(invitation, { includeToken: true });
+    return toInvitationDto(invitation, { rawToken });
   }
 }
