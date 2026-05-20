@@ -11,6 +11,7 @@ export const PERMISSIONS = {
     DELETE: 'workspace:delete',
     INVITE: 'workspace:invite',
     REMOVE_MEMBER: 'workspace:remove_member',
+    TRANSFER_OWNERSHIP: 'workspace:transfer_ownership',
   },
   ROLE: {
     READ: 'role:read',

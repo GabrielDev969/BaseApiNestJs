@@ -186,6 +186,29 @@ describe('PrismaWorkspaceMembersRepository', () => {
     });
   });
 
+  describe('findManyByWorkspaceWithRelations', () => {
+    it('includes user and role and filters out soft-deleted users', async () => {
+      prisma.workspaceMember.findMany.mockResolvedValue([
+        {
+          ...baseMember,
+          user: { id: 'u1', email: 'a@x.com', name: 'A' },
+          role: { id: 'r1', name: 'Owner', isSystem: true },
+        },
+      ]);
+      const result = await repo.findManyByWorkspaceWithRelations('w1');
+      expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith({
+        where: { workspaceId: 'w1', user: { deletedAt: null } },
+        include: {
+          user: { select: { id: true, email: true, name: true } },
+          role: { select: { id: true, name: true, isSystem: true } },
+        },
+        orderBy: { joinedAt: 'asc' },
+      });
+      expect(result[0].user.email).toBe('a@x.com');
+      expect(result[0].role.name).toBe('Owner');
+    });
+  });
+
   describe('updateRole', () => {
     it('updates roleId and returns mapped entity', async () => {
       prisma.workspaceMember.update.mockResolvedValue({

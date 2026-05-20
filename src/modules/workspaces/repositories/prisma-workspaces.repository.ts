@@ -4,9 +4,12 @@ import {
   CreateWorkspaceWithDefaultsData,
   CreateWorkspaceResult,
 } from './workspaces.repository.interface';
+import type { TransferOwnershipData } from './workspaces.repository.interface';
 import { Workspace } from '../entities/workspace.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { Workspace as WorkspacePrisma } from '@prisma/client';
+import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
+import { CACHE_NS } from '@shared/cache/cache.constants';
 
 @Injectable()
 export class PrismaWorkspacesRepository extends WorkspacesRepository {
@@ -117,6 +120,34 @@ export class PrismaWorkspacesRepository extends WorkspacesRepository {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  @InvalidateCache(CACHE_NS.workspaceMembers)
+  async transferOwnership(data: TransferOwnershipData): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.workspaceMember.update({
+        where: {
+          userId_workspaceId: {
+            userId: data.fromUserId,
+            workspaceId: data.workspaceId,
+          },
+        },
+        data: { roleId: data.adminRoleId },
+      }),
+      this.prisma.workspaceMember.update({
+        where: {
+          userId_workspaceId: {
+            userId: data.toUserId,
+            workspaceId: data.workspaceId,
+          },
+        },
+        data: { roleId: data.ownerRoleId },
+      }),
+      this.prisma.workspace.update({
+        where: { id: data.workspaceId },
+        data: { ownerId: data.toUserId },
+      }),
+    ]);
   }
 
   private toEntity(raw: WorkspacePrisma): Workspace {

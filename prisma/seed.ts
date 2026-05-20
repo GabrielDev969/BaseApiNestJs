@@ -50,6 +50,11 @@ const PERMISSIONS = [
     category: 'workspace',
     description: 'Remove members',
   },
+  {
+    key: 'workspace:transfer_ownership',
+    category: 'workspace',
+    description: 'Transfer workspace ownership to another member',
+  },
 
   // RBAC
   { key: 'role:read', category: 'rbac', description: 'View roles' },

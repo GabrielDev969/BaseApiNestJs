@@ -19,6 +19,14 @@ export interface CreateWorkspaceResult {
   ownerRoleId: string;
 }
 
+export interface TransferOwnershipData {
+  workspaceId: string;
+  fromUserId: string;
+  toUserId: string;
+  ownerRoleId: string;
+  adminRoleId: string;
+}
+
 export abstract class WorkspacesRepository {
   abstract createWithDefaults(
     data: CreateWorkspaceWithDefaultsData,
@@ -28,4 +36,5 @@ export abstract class WorkspacesRepository {
   abstract findByUserId(userId: string): Promise<Workspace[]>;
   abstract update(id: string, data: Partial<Workspace>): Promise<Workspace>;
   abstract softDelete(id: string): Promise<void>;
+  abstract transferOwnership(data: TransferOwnershipData): Promise<void>;
 }

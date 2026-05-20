@@ -22,7 +22,7 @@ type Tx = {
 
 type PrismaMock = {
   workspace: WorkspaceClient;
-  workspaceMember: WorkspaceMemberClient;
+  workspaceMember: WorkspaceMemberClient & { update: jest.Mock };
   $transaction: jest.Mock;
 };
 
@@ -59,10 +59,17 @@ describe('PrismaWorkspacesRepository', () => {
         findFirst: jest.fn(),
         update: jest.fn(),
       },
-      workspaceMember: { create: jest.fn(), findMany: jest.fn() },
-      $transaction: jest.fn(async (fn: (txArg: Tx) => Promise<unknown>) =>
-        fn(tx),
-      ),
+      workspaceMember: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+      },
+      $transaction: jest.fn(async (arg: unknown) => {
+        if (typeof arg === 'function') {
+          return (arg as (txArg: Tx) => Promise<unknown>)(tx);
+        }
+        return Promise.all(arg as Promise<unknown>[]);
+      }),
     };
     repo = new PrismaWorkspacesRepository(prisma as unknown as PrismaService);
   });
@@ -274,6 +281,34 @@ describe('PrismaWorkspacesRepository', () => {
       };
       expect(args.where).toEqual({ id: 'w1' });
       expect(args.data.deletedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('transferOwnership', () => {
+    it('runs a transaction that demotes old owner, promotes new, and updates ownerId', async () => {
+      await repo.transferOwnership({
+        workspaceId: 'w1',
+        fromUserId: 'u-old',
+        toUserId: 'u-new',
+        ownerRoleId: 'r-owner',
+        adminRoleId: 'r-admin',
+      });
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const ops = prisma.$transaction.mock.calls[0][0] as unknown[];
+      expect(ops).toHaveLength(3);
+      expect(prisma.workspaceMember.update).toHaveBeenNthCalledWith(1, {
+        where: { userId_workspaceId: { userId: 'u-old', workspaceId: 'w1' } },
+        data: { roleId: 'r-admin' },
+      });
+      expect(prisma.workspaceMember.update).toHaveBeenNthCalledWith(2, {
+        where: { userId_workspaceId: { userId: 'u-new', workspaceId: 'w1' } },
+        data: { roleId: 'r-owner' },
+      });
+      expect(prisma.workspace.update).toHaveBeenCalledWith({
+        where: { id: 'w1' },
+        data: { ownerId: 'u-new' },
+      });
     });
   });
 });

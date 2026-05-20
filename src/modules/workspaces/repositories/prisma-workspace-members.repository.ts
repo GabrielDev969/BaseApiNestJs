@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { WorkspaceMembersRepository } from './workspace-members.repository.interface';
 import type {
   CreateWorkspaceMemberData,
+  WorkspaceMemberListItem,
   WorkspaceMemberWithRelations,
 } from './workspace-members.repository.interface';
 import { WorkspaceMember } from '../entities/workspace-member.entity';
@@ -86,6 +87,24 @@ export class PrismaWorkspaceMembersRepository extends WorkspaceMembersRepository
       orderBy: { joinedAt: 'asc' },
     });
     return members.map((m) => this.toEntity(m));
+  }
+
+  async findManyByWorkspaceWithRelations(
+    workspaceId: string,
+  ): Promise<WorkspaceMemberListItem[]> {
+    const members = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId, user: { deletedAt: null } },
+      include: {
+        user: { select: { id: true, email: true, name: true } },
+        role: { select: { id: true, name: true, isSystem: true } },
+      },
+      orderBy: { joinedAt: 'asc' },
+    });
+    return members.map((m) => ({
+      ...this.toEntity(m),
+      user: m.user,
+      role: m.role,
+    }));
   }
 
   @InvalidateCache(CACHE_NS.workspaceMembers)
