@@ -73,4 +73,14 @@ describe('PrismaPasswordResetTokensRepository', () => {
       where: { userId: 'u1', usedAt: null },
     });
   });
+
+  it('deleteExpired removes tokens whose expiresAt is below the cutoff', async () => {
+    prisma.passwordResetToken.deleteMany.mockResolvedValue({ count: 9 });
+    const cutoff = new Date('2026-04-01');
+    const deleted = await repo.deleteExpired(cutoff);
+    expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalledWith({
+      where: { expiresAt: { lt: cutoff } },
+    });
+    expect(deleted).toBe(9);
+  });
 });

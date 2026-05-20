@@ -34,4 +34,11 @@ export class PrismaPasswordResetTokensRepository extends PasswordResetTokensRepo
       where: { userId, usedAt: null },
     });
   }
+
+  async deleteExpired(cutoff: Date): Promise<number> {
+    const result = await this.prisma.passwordResetToken.deleteMany({
+      where: { expiresAt: { lt: cutoff } },
+    });
+    return result.count;
+  }
 }

@@ -179,10 +179,10 @@ describe('PrismaSessionsRepository', () => {
   });
 
   describe('deleteExpired', () => {
-    it('deletes sessions older than 30 days and returns the count', async () => {
+    it('deletes sessions older than retentionDays and returns the count', async () => {
       prisma.session.deleteMany.mockResolvedValue({ count: 7 });
 
-      const count = await repo.deleteExpired();
+      const count = await repo.deleteExpired(30);
 
       const args = prisma.session.deleteMany.mock.calls[0][0] as {
         where: { expiresAt: { lt: Date } };

@@ -61,6 +61,13 @@ export class PrismaAuditLogsRepository extends AuditLogsRepository {
     };
   }
 
+  async deleteOlderThan(cutoff: Date): Promise<number> {
+    const result = await this.prisma.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoff } },
+    });
+    return result.count;
+  }
+
   private toEntity(raw: PrismaAuditLog): AuditLog {
     return {
       id: raw.id,

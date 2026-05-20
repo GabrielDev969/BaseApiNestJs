@@ -80,8 +80,8 @@ export class PrismaSessionsRepository extends SessionsRepository {
     });
   }
 
-  async deleteExpired(): Promise<number> {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  async deleteExpired(retentionDays: number): Promise<number> {
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
     const result = await this.prisma.session.deleteMany({
       where: { expiresAt: { lt: cutoff } },
     });

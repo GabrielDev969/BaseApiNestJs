@@ -79,4 +79,14 @@ describe('PrismaEmailVerifyTokensRepository', () => {
       where: { userId: 'u1', usedAt: null },
     });
   });
+
+  it('deleteExpired removes tokens whose expiresAt is below the cutoff', async () => {
+    prisma.emailVerifyToken.deleteMany.mockResolvedValue({ count: 4 });
+    const cutoff = new Date('2026-04-01');
+    const deleted = await repo.deleteExpired(cutoff);
+    expect(prisma.emailVerifyToken.deleteMany).toHaveBeenCalledWith({
+      where: { expiresAt: { lt: cutoff } },
+    });
+    expect(deleted).toBe(4);
+  });
 });

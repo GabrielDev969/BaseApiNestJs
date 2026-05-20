@@ -6,6 +6,7 @@ type AuditLogClient = {
   create: jest.Mock;
   findMany: jest.Mock;
   count: jest.Mock;
+  deleteMany: jest.Mock;
 };
 
 type PrismaMock = { auditLog: AuditLogClient };
@@ -33,6 +34,7 @@ describe('PrismaAuditLogsRepository', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
+        deleteMany: jest.fn(),
       },
     };
     repo = new PrismaAuditLogsRepository(prisma as unknown as PrismaService);
@@ -201,6 +203,18 @@ describe('PrismaAuditLogsRepository', () => {
           }),
         }),
       );
+    });
+  });
+
+  describe('deleteOlderThan', () => {
+    it('deletes rows older than cutoff and returns the count', async () => {
+      prisma.auditLog.deleteMany.mockResolvedValue({ count: 12 });
+      const cutoff = new Date('2025-05-20');
+      const deleted = await repo.deleteOlderThan(cutoff);
+      expect(prisma.auditLog.deleteMany).toHaveBeenCalledWith({
+        where: { createdAt: { lt: cutoff } },
+      });
+      expect(deleted).toBe(12);
     });
   });
 });

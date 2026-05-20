@@ -32,4 +32,11 @@ export class PrismaEmailVerifyTokensRepository extends EmailVerifyTokensReposito
       where: { userId, usedAt: null },
     });
   }
+
+  async deleteExpired(cutoff: Date): Promise<number> {
+    const result = await this.prisma.emailVerifyToken.deleteMany({
+      where: { expiresAt: { lt: cutoff } },
+    });
+    return result.count;
+  }
 }
