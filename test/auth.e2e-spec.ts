@@ -168,7 +168,7 @@ describe('Auth flow (e2e)', () => {
       .expect(401);
   });
 
-  it('POST /auth/v1/logout is idempotent when called twice', async () => {
+  it('access token is rejected with 401 after the session is revoked', async () => {
     await registerAndVerify(server, emailDispatcher, credentials);
 
     const login = await request(server)
@@ -177,14 +177,24 @@ describe('Auth flow (e2e)', () => {
       .expect(200);
 
     await request(server)
-      .post('/api/v1/auth/logout')
+      .get('/api/v1/auth/me')
       .set('Authorization', `Bearer ${login.body.accessToken}`)
-      .expect(204);
+      .expect(200);
 
     await request(server)
       .post('/api/v1/auth/logout')
       .set('Authorization', `Bearer ${login.body.accessToken}`)
       .expect(204);
+
+    await request(server)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(401);
+
+    await request(server)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(401);
   });
 
   it('POST /auth/v1/logout without token returns 401', async () => {

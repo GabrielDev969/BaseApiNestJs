@@ -3,12 +3,15 @@ export const CACHE_NS = {
   roles: 'roles',
   users: 'users',
   workspaceMembers: 'workspace_members',
+  sessions: 'sessions',
 } as const;
 
+const seconds = (n: number) => n * 1_000;
 const minutes = (n: number) => n * 60_000;
 const hours = (n: number) => n * 60 * 60_000;
 
 export const CACHE_TTL = {
+  fifteenSeconds: seconds(15),
   oneMinute: minutes(1),
   fifteenMinutes: minutes(15),
   oneHour: hours(1),

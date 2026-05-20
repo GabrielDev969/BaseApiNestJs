@@ -6,6 +6,9 @@ import {
 import { Session } from '../entities/session.entity';
 import { PrismaService } from '@shared/database/prisma.service';
 import { Session as SessionPrisma } from '@prisma/client';
+import { Cacheable } from '@shared/cache/cacheable.decorator';
+import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
+import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
 
 @Injectable()
 export class PrismaSessionsRepository extends SessionsRepository {
@@ -18,6 +21,11 @@ export class PrismaSessionsRepository extends SessionsRepository {
     return this.toEntity(session);
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.sessions,
+    key: (id: string) => `id:${id}`,
+    ttlMs: CACHE_TTL.fifteenSeconds,
+  })
   async findById(id: string): Promise<Session | null> {
     const session = await this.prisma.session.findUnique({ where: { id } });
     return session ? this.toEntity(session) : null;
@@ -49,6 +57,7 @@ export class PrismaSessionsRepository extends SessionsRepository {
     });
   }
 
+  @InvalidateCache(CACHE_NS.sessions)
   async revoke(id: string): Promise<void> {
     await this.prisma.session.update({
       where: { id },
@@ -56,6 +65,7 @@ export class PrismaSessionsRepository extends SessionsRepository {
     });
   }
 
+  @InvalidateCache(CACHE_NS.sessions)
   async revokeAllForUser(
     userId: string,
     exceptSessionId?: string,
