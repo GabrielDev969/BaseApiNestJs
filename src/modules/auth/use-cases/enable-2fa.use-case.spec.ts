@@ -7,6 +7,7 @@ import { EnableTwoFactorUseCase } from './enable-2fa.use-case';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { TwoFactorService } from '../services/two-factor.service';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import type { User } from '@modules/users/entities/user.entity';
 
@@ -14,6 +15,7 @@ describe('EnableTwoFactorUseCase', () => {
   let users: jest.Mocked<UsersRepository>;
   let twoFactor: jest.Mocked<TwoFactorService>;
   let metrics: jest.Mocked<MetricsService>;
+  let audit: jest.Mocked<AuditService>;
   let useCase: EnableTwoFactorUseCase;
   let passwordHash: string;
 
@@ -49,7 +51,10 @@ describe('EnableTwoFactorUseCase', () => {
     metrics = {
       incTwoFactorEnable: jest.fn(),
     } as unknown as jest.Mocked<MetricsService>;
-    useCase = new EnableTwoFactorUseCase(users, twoFactor, metrics);
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditService>;
+    useCase = new EnableTwoFactorUseCase(users, twoFactor, metrics, audit);
   });
 
   it('throws NotFoundException when user is missing', async () => {

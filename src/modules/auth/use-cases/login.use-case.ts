@@ -8,6 +8,7 @@ import { TokenService } from '../services/token.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { CreateSessionUseCase } from '@modules/sessions/use-cases/create-session.use-case';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 
 interface LoginInput {
   email: string;
@@ -23,12 +24,20 @@ export class LoginUseCase {
     private tokens: TokenService,
     private createSession: CreateSessionUseCase,
     private metrics: MetricsService,
+    private audit: AuditService,
   ) {}
 
   async execute(input: LoginInput) {
     const user = await this.users.findByEmailIncludingDeleted(input.email);
     if (!user || !user.passwordHash) {
       this.metrics.incLoginAttempt('failure');
+      await this.audit.log({
+        userId: null,
+        action: 'auth.login.failure',
+        metadata: { reason: 'unknown_email', email: input.email },
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -38,6 +47,13 @@ export class LoginUseCase {
     );
     if (!valid) {
       this.metrics.incLoginAttempt('failure');
+      await this.audit.log({
+        userId: user.id,
+        action: 'auth.login.failure',
+        metadata: { reason: 'invalid_password', email: input.email },
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -47,6 +63,13 @@ export class LoginUseCase {
 
     if (!user.emailVerifiedAt) {
       this.metrics.incLoginAttempt('failure');
+      await this.audit.log({
+        userId: user.id,
+        action: 'auth.login.failure',
+        metadata: { reason: 'email_not_verified' },
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      });
       throw new ForbiddenException(
         'Email not verified. Check your inbox for the verification link.',
       );

@@ -4,6 +4,7 @@ import { UsersRepository } from '@modules/users/repositories/users.repository.in
 import { TokenService } from '../services/token.service';
 import { CreateSessionUseCase } from '@modules/sessions/use-cases/create-session.use-case';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import type { User } from '@modules/users/entities/user.entity';
 
@@ -12,6 +13,7 @@ describe('LoginUseCase', () => {
   let tokens: jest.Mocked<TokenService>;
   let createSession: jest.Mocked<CreateSessionUseCase>;
   let metrics: jest.Mocked<MetricsService>;
+  let audit: jest.Mocked<AuditService>;
   let useCase: LoginUseCase;
 
   const passwordHash = '$argon2id$mock';
@@ -32,7 +34,10 @@ describe('LoginUseCase', () => {
     metrics = {
       incLoginAttempt: jest.fn(),
     } as unknown as jest.Mocked<MetricsService>;
-    useCase = new LoginUseCase(users, tokens, createSession, metrics);
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditService>;
+    useCase = new LoginUseCase(users, tokens, createSession, metrics, audit);
   });
 
   it('rejects unknown email and counts as failure', async () => {

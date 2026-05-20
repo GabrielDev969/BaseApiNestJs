@@ -8,6 +8,7 @@ import { TokenService } from '../services/token.service';
 import { TwoFactorService } from '../services/two-factor.service';
 import { LoginUseCase } from './login.use-case';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 
 interface VerifyInput {
   challenge: string;
@@ -24,6 +25,7 @@ export class VerifyTwoFactorUseCase {
     private twoFactor: TwoFactorService,
     private loginUseCase: LoginUseCase,
     private metrics: MetricsService,
+    private audit: AuditService,
   ) {}
 
   async execute(input: VerifyInput) {
@@ -32,6 +34,13 @@ export class VerifyTwoFactorUseCase {
       userId = await this.tokens.verifyChallengeToken(input.challenge);
     } catch {
       this.metrics.incTwoFactorVerify('invalid_challenge');
+      await this.audit.log({
+        userId: null,
+        action: 'auth.2fa.verify.failure',
+        metadata: { reason: 'invalid_challenge' },
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      });
       throw new UnauthorizedException('Invalid or expired challenge');
     }
 
@@ -49,6 +58,13 @@ export class VerifyTwoFactorUseCase {
       );
       if (!remaining) {
         this.metrics.incTwoFactorVerify('invalid_code');
+        await this.audit.log({
+          userId,
+          action: 'auth.2fa.verify.failure',
+          metadata: { reason: 'invalid_code' },
+          ipAddress: input.ipAddress ?? null,
+          userAgent: input.userAgent ?? null,
+        });
         throw new UnauthorizedException('Invalid code');
       }
       await this.users.update(userId, { recoveryCodes: remaining });

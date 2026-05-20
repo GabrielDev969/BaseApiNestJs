@@ -8,6 +8,7 @@ import { UsersRepository } from '@modules/users/repositories/users.repository.in
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { TwoFactorService } from '../services/two-factor.service';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 
 @Injectable()
 export class EnableTwoFactorUseCase {
@@ -15,6 +16,7 @@ export class EnableTwoFactorUseCase {
     private users: UsersRepository,
     private twoFactor: TwoFactorService,
     private metrics: MetricsService,
+    private audit: AuditService,
   ) {}
 
   async execute(
@@ -37,12 +39,22 @@ export class EnableTwoFactorUseCase {
       !(await CryptoUtil.verifyPassword(user.passwordHash, password))
     ) {
       this.metrics.incTwoFactorEnable('invalid_password');
+      await this.audit.log({
+        userId,
+        action: 'auth.password.invalid',
+        metadata: { context: '2fa_enable' },
+      });
       throw new UnauthorizedException('Invalid password');
     }
 
     const secret = this.twoFactor.decryptSecret(user.twoFactorSecret);
     if (!this.twoFactor.verifyToken(secret, code)) {
       this.metrics.incTwoFactorEnable('invalid_code');
+      await this.audit.log({
+        userId,
+        action: 'auth.2fa.enable.failure',
+        metadata: { reason: 'invalid_code' },
+      });
       throw new UnauthorizedException('Invalid code');
     }
 

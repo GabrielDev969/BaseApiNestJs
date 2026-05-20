@@ -6,12 +6,14 @@ import {
 import { SetupTwoFactorUseCase } from './setup-2fa.use-case';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { TwoFactorService } from '../services/two-factor.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import type { User } from '@modules/users/entities/user.entity';
 
 describe('SetupTwoFactorUseCase', () => {
   let users: jest.Mocked<UsersRepository>;
   let twoFactor: jest.Mocked<TwoFactorService>;
+  let audit: jest.Mocked<AuditService>;
   let useCase: SetupTwoFactorUseCase;
   let passwordHash: string;
 
@@ -41,7 +43,10 @@ describe('SetupTwoFactorUseCase', () => {
       encryptSecret: jest.fn().mockReturnValue('encrypted-secret'),
       buildOtpAuthUrl: jest.fn().mockReturnValue('otpauth://...'),
     } as unknown as jest.Mocked<TwoFactorService>;
-    useCase = new SetupTwoFactorUseCase(users, twoFactor);
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditService>;
+    useCase = new SetupTwoFactorUseCase(users, twoFactor, audit);
   });
 
   it('throws NotFoundException when the user does not exist', async () => {

@@ -6,12 +6,14 @@ import {
 import { DisableTwoFactorUseCase } from './disable-2fa.use-case';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { TwoFactorService } from '../services/two-factor.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 import { User } from '@modules/users/entities/user.entity';
 
 describe('DisableTwoFactorUseCase', () => {
   let users: jest.Mocked<UsersRepository>;
   let twoFactor: jest.Mocked<TwoFactorService>;
+  let audit: jest.Mocked<AuditService>;
   let useCase: DisableTwoFactorUseCase;
   let passwordHash: string;
 
@@ -54,7 +56,10 @@ describe('DisableTwoFactorUseCase', () => {
       hashRecoveryCodes: jest.fn(),
       consumeRecoveryCode: jest.fn(),
     };
-    useCase = new DisableTwoFactorUseCase(users, twoFactor);
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditService>;
+    useCase = new DisableTwoFactorUseCase(users, twoFactor, audit);
   });
 
   it('clears 2FA fields when password and TOTP are valid', async () => {

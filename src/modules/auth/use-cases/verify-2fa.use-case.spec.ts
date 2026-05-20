@@ -5,6 +5,7 @@ import { TokenService } from '../services/token.service';
 import { TwoFactorService } from '../services/two-factor.service';
 import { LoginUseCase } from './login.use-case';
 import { MetricsService } from '@shared/metrics/metrics.service';
+import { AuditService } from '@modules/audit/services/audit.service';
 import type { User } from '@modules/users/entities/user.entity';
 
 describe('VerifyTwoFactorUseCase', () => {
@@ -13,6 +14,7 @@ describe('VerifyTwoFactorUseCase', () => {
   let twoFactor: jest.Mocked<TwoFactorService>;
   let loginUseCase: jest.Mocked<LoginUseCase>;
   let metrics: jest.Mocked<MetricsService>;
+  let audit: jest.Mocked<AuditService>;
   let useCase: VerifyTwoFactorUseCase;
 
   beforeEach(() => {
@@ -36,12 +38,16 @@ describe('VerifyTwoFactorUseCase', () => {
     metrics = {
       incTwoFactorVerify: jest.fn(),
     } as unknown as jest.Mocked<MetricsService>;
+    audit = {
+      log: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditService>;
     useCase = new VerifyTwoFactorUseCase(
       users,
       tokens,
       twoFactor,
       loginUseCase,
       metrics,
+      audit,
     );
   });
 
