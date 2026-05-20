@@ -17,6 +17,7 @@ import { ListSessionsUseCase } from '../use-cases/list-sessions.use-case';
 import { RevokeSessionUseCase } from '../use-cases/revoke-session.use-case';
 import { RevokeAllSessionsUseCase } from '../use-cases/revoke-all-sessions.use-case';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
+import { Audit } from '@shared/decorators/audit.decorator';
 import {
   ApiAuthErrors,
   ApiNotFoundError,
@@ -45,6 +46,11 @@ export class SessionsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({
+    action: 'auth.session.revoked',
+    resource: 'Session',
+    resourceIdFrom: 'param',
+  })
   @ApiOperation({ summary: 'Revoke a specific session' })
   @ApiParam({ name: 'id', description: 'Session id' })
   @ApiResponse({ status: 204, description: 'Session revoked' })
@@ -57,6 +63,7 @@ export class SessionsController {
 
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.session.revoked_all' })
   @ApiOperation({ summary: 'Revoke all sessions except the current one' })
   @ApiResponse({ status: 204, description: 'Other sessions revoked' })
   @ApiAuthErrors()

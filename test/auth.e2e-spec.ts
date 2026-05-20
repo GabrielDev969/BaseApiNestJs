@@ -200,4 +200,40 @@ describe('Auth flow (e2e)', () => {
   it('POST /auth/v1/logout without token returns 401', async () => {
     await request(server).post('/api/v1/auth/logout').expect(401);
   });
+
+  it('audit log captures register, login success, login failure, and logout', async () => {
+    const { getPrisma } =
+      require('./helpers/test-database') as typeof import('./helpers/test-database');
+    const prisma = getPrisma();
+
+    await registerAndVerify(server, emailDispatcher, credentials);
+
+    await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: 'WrongPass@123' })
+      .expect(401);
+
+    const login = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+
+    await request(server)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(204);
+
+    const logs = (await prisma.auditLog.findMany({
+      orderBy: { createdAt: 'asc' },
+    })) as Array<{ action: string }>;
+    const actions = logs.map((l) => l.action);
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        'auth.register',
+        'auth.login.failure',
+        'auth.login.success',
+        'auth.logout',
+      ]),
+    );
+  });
 });

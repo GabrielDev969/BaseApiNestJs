@@ -47,6 +47,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Public } from '@shared/decorators/public.decorator';
 import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
+import { Audit } from '@shared/decorators/audit.decorator';
 import {
   ApiAuthErrors,
   ApiConflictError,
@@ -81,6 +82,7 @@ export class AuthController {
   @Post('register')
   @RateLimit('register')
   @HttpCode(HttpStatus.CREATED)
+  @Audit({ action: 'auth.register', resource: 'User' })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User created successfully' })
@@ -96,6 +98,7 @@ export class AuthController {
   @Post('login')
   @RateLimit('login')
   @HttpCode(HttpStatus.OK)
+  @Audit({ action: 'auth.login.success' })
   @ApiOperation({ summary: 'Authenticate user' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({
@@ -155,6 +158,7 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.logout', resource: 'Session' })
   @ApiOperation({
     summary: 'Revoke the current session and clear the refresh cookie',
   })
@@ -183,6 +187,7 @@ export class AuthController {
   @Post('2fa/setup')
   @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.OK)
+  @Audit({ action: 'auth.2fa.setup', resource: 'User' })
   @ApiOperation({
     summary: 'Generate a 2FA secret (requires current password)',
   })
@@ -203,6 +208,7 @@ export class AuthController {
   @Post('2fa/enable')
   @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.OK)
+  @Audit({ action: 'auth.2fa.enabled', resource: 'User' })
   @ApiOperation({
     summary:
       'Activate 2FA after verifying first TOTP code (requires current password)',
@@ -227,6 +233,7 @@ export class AuthController {
   @Post('2fa/disable')
   @RateLimit('twoFactorMutate')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.2fa.disabled', resource: 'User' })
   @ApiOperation({ summary: 'Disable 2FA (requires password and current TOTP)' })
   @ApiBody({ type: DisableTwoFactorDto })
   @ApiResponse({ status: 204, description: '2FA disabled' })
@@ -245,6 +252,7 @@ export class AuthController {
   @Post('2fa/verify')
   @RateLimit('twoFactorVerify')
   @HttpCode(HttpStatus.OK)
+  @Audit({ action: 'auth.2fa.verify.success' })
   @ApiOperation({ summary: 'Complete login by verifying 2FA challenge' })
   @ApiBody({ type: VerifyTwoFactorDto })
   @ApiResponse({ status: 200, description: 'Tokens issued' })
@@ -275,6 +283,7 @@ export class AuthController {
   @Post('verify-email/request')
   @RateLimit('emailVerifyRequest')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.email_verification.requested', resource: 'User' })
   @ApiOperation({ summary: 'Resend the email verification link' })
   @ApiResponse({ status: 204, description: 'Verification email queued' })
   @ApiAuthErrors()
@@ -290,6 +299,7 @@ export class AuthController {
   @Post('verify-email')
   @RateLimit('emailVerifyConfirm')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.email.verified' })
   @ApiOperation({ summary: 'Confirm an email with the token from the link' })
   @ApiBody({ type: VerifyEmailDto })
   @ApiResponse({ status: 204, description: 'Email verified' })
@@ -309,6 +319,7 @@ export class AuthController {
   @Post('forgot-password')
   @RateLimit('forgotPassword')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.password_reset.requested' })
   @ApiOperation({
     summary:
       'Send a password reset email; always returns 204 (no user enumeration)',
@@ -329,6 +340,7 @@ export class AuthController {
   @Post('reset-password')
   @RateLimit('resetPassword')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Audit({ action: 'auth.password_reset.completed' })
   @ApiOperation({
     summary:
       'Reset password using the token from the email; revokes all sessions',

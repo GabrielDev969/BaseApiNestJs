@@ -25,6 +25,7 @@ import { PrismaEmailVerifyTokensRepository } from './repositories/prisma-email-v
 import { PasswordResetTokensRepository } from './repositories/password-reset-tokens.repository.interface';
 import { PrismaPasswordResetTokensRepository } from './repositories/prisma-password-reset-tokens.repository';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
+import { AuditModule } from '@modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
     UsersModule,
     SessionsModule,
     WorkspacesModule,
+    AuditModule,
   ],
   controllers: [AuthController],
   providers: [

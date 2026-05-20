@@ -7,8 +7,10 @@ import { ListSessionsUseCase } from './use-cases/list-sessions.use-case';
 import { RevokeSessionUseCase } from './use-cases/revoke-session.use-case';
 import { RevokeAllSessionsUseCase } from './use-cases/revoke-all-sessions.use-case';
 import { CleanupExpiredSessionsUseCase } from './use-cases/cleanup-expired-sessions.use-case';
+import { AuditModule } from '@modules/audit/audit.module';
 
 @Module({
+  imports: [AuditModule],
   controllers: [SessionsController],
   providers: [
     {
