@@ -105,6 +105,14 @@ const envSchema = z
     LOG_PRETTY: z.coerce.boolean().optional(),
     LOG_SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
     LOG_SLOW_QUERY_MS: z.coerce.number().int().positive().default(100),
+
+    SESSION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
+    AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
+    EPHEMERAL_TOKEN_RETENTION_DAYS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(7),
   })
   .refine(
     (data) => {

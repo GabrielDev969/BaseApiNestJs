@@ -19,5 +19,5 @@ export abstract class SessionsRepository {
     userId: string,
     exceptSessionId?: string,
   ): Promise<void>;
-  abstract deleteExpired(): Promise<number>;
+  abstract deleteExpired(retentionDays: number): Promise<number>;
 }

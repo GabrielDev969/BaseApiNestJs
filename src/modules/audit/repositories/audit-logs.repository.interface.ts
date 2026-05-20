@@ -30,4 +30,5 @@ export interface FindAuditLogsResult {
 export abstract class AuditLogsRepository {
   abstract create(data: CreateAuditLogData): Promise<AuditLog>;
   abstract findMany(params: FindAuditLogsParams): Promise<FindAuditLogsResult>;
+  abstract deleteOlderThan(cutoff: Date): Promise<number>;
 }

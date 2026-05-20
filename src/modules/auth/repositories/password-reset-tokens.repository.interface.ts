@@ -22,4 +22,5 @@ export abstract class PasswordResetTokensRepository {
   ): Promise<PasswordResetToken | null>;
   abstract markUsed(id: string): Promise<void>;
   abstract deletePendingForUser(userId: string): Promise<void>;
+  abstract deleteExpired(cutoff: Date): Promise<number>;
 }

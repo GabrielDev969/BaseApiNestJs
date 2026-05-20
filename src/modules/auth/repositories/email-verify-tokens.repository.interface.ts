@@ -18,4 +18,5 @@ export abstract class EmailVerifyTokensRepository {
   abstract findByTokenHash(tokenHash: string): Promise<EmailVerifyToken | null>;
   abstract markUsed(id: string): Promise<void>;
   abstract deletePendingForUser(userId: string): Promise<void>;
+  abstract deleteExpired(cutoff: Date): Promise<number>;
 }
