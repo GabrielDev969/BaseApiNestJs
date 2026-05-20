@@ -13,6 +13,7 @@ import { RequestEmailVerificationUseCase } from '../use-cases/request-email-veri
 import { VerifyEmailUseCase } from '../use-cases/verify-email.use-case';
 import { ForgotPasswordUseCase } from '../use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from '../use-cases/reset-password.use-case';
+import { RevokeSessionUseCase } from '@modules/sessions/use-cases/revoke-session.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -33,6 +34,7 @@ describe('AuthController', () => {
   let verifyEmail: jest.Mocked<VerifyEmailUseCase>;
   let forgotPassword: jest.Mocked<ForgotPasswordUseCase>;
   let resetPassword: jest.Mocked<ResetPasswordUseCase>;
+  let revokeSession: jest.Mocked<RevokeSessionUseCase>;
   let controller: AuthController;
 
   beforeEach(() => {
@@ -68,6 +70,9 @@ describe('AuthController', () => {
     resetPassword = {
       execute: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<ResetPasswordUseCase>;
+    revokeSession = {
+      execute: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<RevokeSessionUseCase>;
     controller = new AuthController(
       register,
       login,
@@ -81,6 +86,7 @@ describe('AuthController', () => {
       verifyEmail,
       forgotPassword,
       resetPassword,
+      revokeSession,
     );
   });
 
@@ -255,6 +261,16 @@ describe('AuthController', () => {
   it('forgotPasswordEndpoint forwards email', async () => {
     await controller.forgotPasswordEndpoint({ email: 'a@b.c' });
     expect(forgotPassword.execute).toHaveBeenCalledWith('a@b.c');
+  });
+
+  it('logoutEndpoint revokes the current session and clears the refresh cookie', async () => {
+    const res = mockRes();
+    await controller.logoutEndpoint({ id: 'u1', sessionId: 's1' }, res);
+    expect(revokeSession.execute).toHaveBeenCalledWith('s1', 'u1');
+    expect(res.clearCookie).toHaveBeenCalledWith(
+      'refresh_token',
+      expect.objectContaining({ path: '/api/v1/auth/refresh' }),
+    );
   });
 
   it('resetPasswordEndpoint forwards token + new password', async () => {

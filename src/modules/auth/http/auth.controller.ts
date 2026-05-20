@@ -28,10 +28,15 @@ import { RequestEmailVerificationUseCase } from '../use-cases/request-email-veri
 import { VerifyEmailUseCase } from '../use-cases/verify-email.use-case';
 import { ForgotPasswordUseCase } from '../use-cases/forgot-password.use-case';
 import { ResetPasswordUseCase } from '../use-cases/reset-password.use-case';
+import { RevokeSessionUseCase } from '@modules/sessions/use-cases/revoke-session.use-case';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { MeResponseDto } from './dto/me-response.dto';
-import { readRefreshCookie, setRefreshCookie } from './refresh-cookie';
+import {
+  clearRefreshCookie,
+  readRefreshCookie,
+  setRefreshCookie,
+} from './refresh-cookie';
 import { SetupTwoFactorDto } from './dto/setup-2fa.dto';
 import { EnableTwoFactorDto } from './dto/enable-2fa.dto';
 import { DisableTwoFactorDto } from './dto/disable-2fa.dto';
@@ -69,6 +74,7 @@ export class AuthController {
     private verifyEmail: VerifyEmailUseCase,
     private forgotPassword: ForgotPasswordUseCase,
     private resetPassword: ResetPasswordUseCase,
+    private revokeSession: RevokeSessionUseCase,
   ) {}
 
   @Public()
@@ -144,6 +150,23 @@ export class AuthController {
     const result = await this.refresh.execute(cookie);
     setRefreshCookie(res, result.refreshToken);
     return { accessToken: result.accessToken };
+  }
+
+  @ApiBearerAuth()
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Revoke the current session and clear the refresh cookie',
+  })
+  @ApiResponse({ status: 204, description: 'Logged out' })
+  @ApiAuthErrors()
+  @ApiServerError()
+  async logoutEndpoint(
+    @CurrentUser() user: AccessTokenPayload,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.revokeSession.execute(user.sessionId, user.id);
+    clearRefreshCookie(res);
   }
 
   @ApiBearerAuth()

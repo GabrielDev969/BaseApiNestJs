@@ -19,6 +19,6 @@ import { RevokeAllSessionsUseCase } from './use-cases/revoke-all-sessions.use-ca
     RevokeSessionUseCase,
     RevokeAllSessionsUseCase,
   ],
-  exports: [SessionsRepository, CreateSessionUseCase],
+  exports: [SessionsRepository, CreateSessionUseCase, RevokeSessionUseCase],
 })
 export class SessionsModule {}

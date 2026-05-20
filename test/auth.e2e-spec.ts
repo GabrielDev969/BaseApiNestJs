@@ -134,4 +134,60 @@ describe('Auth flow (e2e)', () => {
   it('GET /auth/v1/me without token returns 401', async () => {
     await request(server).get('/api/v1/auth/me').expect(401);
   });
+
+  it('POST /auth/v1/logout revokes the session, clears the cookie, and invalidates refresh', async () => {
+    await registerAndVerify(server, emailDispatcher, credentials);
+
+    const login = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+
+    const setCookie = login.headers['set-cookie'] as unknown as string[];
+    const refreshCookie = setCookie.find((c) =>
+      c.startsWith('refresh_token='),
+    ) as string;
+    const refreshValue = refreshCookie.split(';')[0].split('=')[1];
+
+    const logout = await request(server)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(204);
+
+    const logoutSetCookie = logout.headers['set-cookie'] as unknown as string[];
+    expect(logoutSetCookie).toBeDefined();
+    const cleared = logoutSetCookie.find((c) =>
+      c.startsWith('refresh_token='),
+    ) as string;
+    expect(cleared).toContain('Path=/api/v1/auth/refresh');
+    expect(cleared).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/);
+
+    await request(server)
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', `refresh_token=${refreshValue}`)
+      .expect(401);
+  });
+
+  it('POST /auth/v1/logout is idempotent when called twice', async () => {
+    await registerAndVerify(server, emailDispatcher, credentials);
+
+    const login = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+
+    await request(server)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(204);
+
+    await request(server)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(204);
+  });
+
+  it('POST /auth/v1/logout without token returns 401', async () => {
+    await request(server).post('/api/v1/auth/logout').expect(401);
+  });
 });
