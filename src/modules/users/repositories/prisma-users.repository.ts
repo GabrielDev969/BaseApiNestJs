@@ -155,6 +155,32 @@ export class PrismaUsersRepository extends UsersRepository {
     };
   }
 
+  @InvalidateCache(CACHE_NS.users)
+  async incrementFailedLoginAttempts(id: string): Promise<number> {
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { failedLoginAttempts: { increment: 1 } },
+      select: { failedLoginAttempts: true },
+    });
+    return user.failedLoginAttempts;
+  }
+
+  @InvalidateCache(CACHE_NS.users)
+  async lockAccount(id: string, until: Date): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { lockedUntil: until },
+    });
+  }
+
+  @InvalidateCache(CACHE_NS.users)
+  async resetFailedLoginAttempts(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  }
+
   private toEntity(raw: PrismaUser): User {
     return {
       id: raw.id,
@@ -165,6 +191,8 @@ export class PrismaUsersRepository extends UsersRepository {
       twoFactorSecret: raw.twoFactorSecret,
       recoveryCodes: raw.recoveryCodes,
       emailVerifiedAt: raw.emailVerifiedAt,
+      failedLoginAttempts: raw.failedLoginAttempts,
+      lockedUntil: raw.lockedUntil,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,

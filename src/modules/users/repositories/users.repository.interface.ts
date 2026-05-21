@@ -46,4 +46,7 @@ export abstract class UsersRepository {
   abstract anonymize(id: string): Promise<void>;
   abstract findByEmailIncludingDeleted(email: string): Promise<User | null>;
   abstract findPendingAnonymization(cutoff: Date): Promise<User[]>;
+  abstract incrementFailedLoginAttempts(id: string): Promise<number>;
+  abstract lockAccount(id: string, until: Date): Promise<void>;
+  abstract resetFailedLoginAttempts(id: string): Promise<void>;
 }

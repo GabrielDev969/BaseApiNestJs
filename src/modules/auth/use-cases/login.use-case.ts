@@ -3,6 +3,8 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { TokenService } from '../services/token.service';
 import { CryptoUtil } from '@shared/utils/crypto.util';
@@ -16,6 +18,9 @@ interface LoginInput {
   userAgent?: string;
   ipAddress?: string;
 }
+
+export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+export const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class LoginUseCase {
@@ -41,16 +46,51 @@ export class LoginUseCase {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      this.metrics.incLoginAttempt('failure');
+      await this.audit.log({
+        userId: user.id,
+        action: 'auth.login.failure',
+        metadata: {
+          reason: 'account_locked',
+          lockedUntil: user.lockedUntil.toISOString(),
+        },
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+      });
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.LOCKED,
+          error: 'Locked',
+          message:
+            'Account temporarily locked due to too many failed login attempts. Try again later.',
+        },
+        HttpStatus.LOCKED,
+      );
+    }
+
     const valid = await CryptoUtil.verifyPassword(
       user.passwordHash,
       input.password,
     );
     if (!valid) {
       this.metrics.incLoginAttempt('failure');
+      const attempts = await this.users.incrementFailedLoginAttempts(user.id);
+      const justLocked = attempts >= MAX_FAILED_LOGIN_ATTEMPTS;
+      if (justLocked) {
+        await this.users.lockAccount(
+          user.id,
+          new Date(Date.now() + LOCKOUT_DURATION_MS),
+        );
+      }
       await this.audit.log({
         userId: user.id,
-        action: 'auth.login.failure',
-        metadata: { reason: 'invalid_password', email: input.email },
+        action: justLocked ? 'auth.account.locked' : 'auth.login.failure',
+        metadata: {
+          reason: 'invalid_password',
+          email: input.email,
+          attempts,
+        },
         ipAddress: input.ipAddress ?? null,
         userAgent: input.userAgent ?? null,
       });
@@ -73,6 +113,10 @@ export class LoginUseCase {
       throw new ForbiddenException(
         'Email not verified. Check your inbox for the verification link.',
       );
+    }
+
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.users.resetFailedLoginAttempts(user.id);
     }
 
     if (user.twoFactorEnabled) {

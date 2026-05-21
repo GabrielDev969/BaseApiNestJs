@@ -195,6 +195,41 @@ describe('PrismaUsersRepository', () => {
     });
   });
 
+  describe('account lockout', () => {
+    it('incrementFailedLoginAttempts uses Prisma atomic increment and returns the new count', async () => {
+      prisma.user.update.mockResolvedValue({
+        ...baseUser,
+        failedLoginAttempts: 3,
+      });
+      const result = await repo.incrementFailedLoginAttempts('u1');
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { failedLoginAttempts: { increment: 1 } },
+        select: { failedLoginAttempts: true },
+      });
+      expect(result).toBe(3);
+    });
+
+    it('lockAccount sets lockedUntil to the provided Date', async () => {
+      prisma.user.update.mockResolvedValue(baseUser);
+      const until = new Date('2026-12-31T00:00:00Z');
+      await repo.lockAccount('u1', until);
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { lockedUntil: until },
+      });
+    });
+
+    it('resetFailedLoginAttempts clears the counter and the lock', async () => {
+      prisma.user.update.mockResolvedValue(baseUser);
+      await repo.resetFailedLoginAttempts('u1');
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
+    });
+  });
+
   describe('findByEmailIncludingDeleted', () => {
     it('returns soft-deleted users but not anonymized', async () => {
       prisma.user.findFirst.mockResolvedValue(baseUser);

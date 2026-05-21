@@ -7,6 +7,8 @@ export class User {
   twoFactorSecret: string | null;
   recoveryCodes: string | null;
   emailVerifiedAt: Date | null;
+  failedLoginAttempts: number;
+  lockedUntil: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
