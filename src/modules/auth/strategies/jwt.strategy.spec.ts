@@ -2,6 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtKeyResolverService } from '../services/jwt-key-resolver.service';
 import { SessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
+import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { Session } from '@modules/sessions/entities/session.entity';
 
 const baseSession = (overrides: Partial<Session> = {}): Session => ({
@@ -19,8 +20,10 @@ const baseSession = (overrides: Partial<Session> = {}): Session => ({
 
 describe('JwtStrategy', () => {
   let sessions: jest.Mocked<SessionsRepository>;
+  let users: jest.Mocked<UsersRepository>;
   let strategy: JwtStrategy;
   const resolver = new JwtKeyResolverService();
+  const nowSeconds = Math.floor(Date.now() / 1000);
 
   beforeEach(() => {
     sessions = {
@@ -32,12 +35,21 @@ describe('JwtStrategy', () => {
       revokeAllForUser: jest.fn(),
       deleteExpired: jest.fn(),
     };
-    strategy = new JwtStrategy(sessions, resolver);
+    users = {
+      findTokensInvalidatedAt: jest.fn().mockResolvedValue(null),
+    } as unknown as jest.Mocked<UsersRepository>;
+    strategy = new JwtStrategy(sessions, users, resolver);
   });
 
   it('maps sub to id and forwards sessionId when session is active', async () => {
     sessions.findById.mockResolvedValue(baseSession());
-    expect(await strategy.validate({ sub: 'u1', sessionId: 's1' })).toEqual({
+    expect(
+      await strategy.validate({
+        sub: 'u1',
+        sessionId: 's1',
+        iat: nowSeconds,
+      }),
+    ).toEqual({
       id: 'u1',
       sessionId: 's1',
     });
@@ -47,14 +59,18 @@ describe('JwtStrategy', () => {
   it('rejects when session does not exist', async () => {
     sessions.findById.mockResolvedValue(null);
     await expect(
-      strategy.validate({ sub: 'u1', sessionId: 's-missing' }),
+      strategy.validate({
+        sub: 'u1',
+        sessionId: 's-missing',
+        iat: nowSeconds,
+      }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('rejects when session is revoked', async () => {
     sessions.findById.mockResolvedValue(baseSession({ revokedAt: new Date() }));
     await expect(
-      strategy.validate({ sub: 'u1', sessionId: 's1' }),
+      strategy.validate({ sub: 'u1', sessionId: 's1', iat: nowSeconds }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
@@ -63,7 +79,35 @@ describe('JwtStrategy', () => {
       baseSession({ expiresAt: new Date(Date.now() - 60_000) }),
     );
     await expect(
-      strategy.validate({ sub: 'u1', sessionId: 's1' }),
+      strategy.validate({ sub: 'u1', sessionId: 's1', iat: nowSeconds }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('rejects when tokensInvalidatedAt is newer than the token iat', async () => {
+    sessions.findById.mockResolvedValue(baseSession());
+    users.findTokensInvalidatedAt.mockResolvedValue(
+      new Date((nowSeconds + 5) * 1000),
+    );
+    await expect(
+      strategy.validate({ sub: 'u1', sessionId: 's1', iat: nowSeconds }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('accepts when tokensInvalidatedAt is older than the token iat', async () => {
+    sessions.findById.mockResolvedValue(baseSession());
+    users.findTokensInvalidatedAt.mockResolvedValue(
+      new Date((nowSeconds - 5) * 1000),
+    );
+    await expect(
+      strategy.validate({ sub: 'u1', sessionId: 's1', iat: nowSeconds }),
+    ).resolves.toEqual({ id: 'u1', sessionId: 's1' });
+  });
+
+  it('accepts when tokensInvalidatedAt is null', async () => {
+    sessions.findById.mockResolvedValue(baseSession());
+    users.findTokensInvalidatedAt.mockResolvedValue(null);
+    await expect(
+      strategy.validate({ sub: 'u1', sessionId: 's1', iat: nowSeconds }),
+    ).resolves.toEqual({ id: 'u1', sessionId: 's1' });
   });
 });

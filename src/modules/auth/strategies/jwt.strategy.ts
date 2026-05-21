@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { SessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
+import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import type { AccessTokenPayload } from '../services/token.service';
 import { JwtKeyResolverService } from '../services/jwt-key-resolver.service';
 
@@ -9,6 +10,7 @@ import { JwtKeyResolverService } from '../services/jwt-key-resolver.service';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private sessions: SessionsRepository,
+    private users: UsersRepository,
     resolver: JwtKeyResolverService,
   ) {
     super({
@@ -33,6 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: {
     sub: string;
     sessionId: string;
+    iat: number;
   }): Promise<AccessTokenPayload> {
     const session = await this.sessions.findById(payload.sessionId);
     if (
@@ -42,6 +45,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     ) {
       throw new UnauthorizedException('Session is no longer active');
     }
+
+    const invalidatedAt = await this.users.findTokensInvalidatedAt(payload.sub);
+    if (invalidatedAt && payload.iat * 1000 < invalidatedAt.getTime()) {
+      throw new UnauthorizedException('Token has been invalidated');
+    }
+
     return { id: payload.sub, sessionId: payload.sessionId };
   }
 }
