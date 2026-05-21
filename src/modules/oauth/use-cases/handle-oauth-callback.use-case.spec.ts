@@ -382,6 +382,7 @@ describe('HandleOAuthCallbackUseCase', () => {
       expect(mocks.users.create).toHaveBeenCalledWith({
         email: 'jane@example.com',
         name: 'Jane',
+        emailVerifiedAt: expect.any(Date),
       });
       expect(mocks.workspaces.execute).toHaveBeenCalledWith({
         userId: 'u-new',

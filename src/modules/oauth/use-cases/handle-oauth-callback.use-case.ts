@@ -144,6 +144,7 @@ export class HandleOAuthCallbackUseCase {
     const user = await this.users.create({
       email: profile.email,
       name: profile.name,
+      emailVerifiedAt: new Date(),
     });
     await this.createWorkspace.execute({
       userId: user.id,
