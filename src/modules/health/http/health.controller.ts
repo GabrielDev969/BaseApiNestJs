@@ -9,6 +9,8 @@ import { Public } from '@shared/decorators/public.decorator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiServerError } from '@shared/swagger/api-errors.decorator';
 import { PrismaHealthIndicator } from '../indicators/prisma.indicator';
+import { RedisHealthIndicator } from '../indicators/redis.indicator';
+import { QueueHealthIndicator } from '../indicators/queue.indicator';
 
 @ApiTags('Health')
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
@@ -18,6 +20,8 @@ export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
     private readonly prisma: PrismaHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
+    private readonly queue: QueueHealthIndicator,
   ) {}
 
   @Get()
@@ -38,6 +42,10 @@ export class HealthController {
   })
   @ApiResponse({ status: 503, description: 'A dependency is down' })
   readiness(): Promise<HealthCheckResult> {
-    return this.health.check([() => this.prisma.pingCheck('database')]);
+    return this.health.check([
+      () => this.prisma.pingCheck('database'),
+      () => this.redis.pingCheck('redis'),
+      () => this.queue.pingCheck('queue'),
+    ]);
   }
 }
