@@ -5,8 +5,8 @@ import {
   CallHandler,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { from, Observable } from 'rxjs';
+import { mergeMap } from 'rxjs/operators';
 import { AUDIT_KEY, AuditMetadata } from '../decorators/audit.decorator';
 import { AuditService } from '@modules/audit/services/audit.service';
 import { Request } from 'express';
@@ -40,12 +40,19 @@ export class AuditInterceptor implements NestInterceptor {
 
     const req = ctx.switchToHttp().getRequest<AuditRequest>();
 
+    // Await the audit write before emitting the response so callers get the
+    // "200 → audit is committed" guarantee (matters for SOC2 and avoids
+    // dangling transactions when the process shuts down right after the
+    // request). AuditService.log already swallows its own errors, so a
+    // failed audit log will not break the user-facing response.
     return next.handle().pipe(
-      tap({
-        next: (response: unknown) => {
-          this.recordLog(meta, req, response).catch(() => undefined);
-        },
-      }),
+      mergeMap((response: unknown) =>
+        from(
+          this.recordLog(meta, req, response)
+            .catch(() => undefined)
+            .then(() => response),
+        ),
+      ),
     );
   }
 
