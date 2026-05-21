@@ -1,15 +1,29 @@
 import 'dotenv/config';
+import * as crypto from 'crypto';
 import { z } from 'zod';
+
+function decodeBase64Pem(
+  raw: string,
+  kind: 'PRIVATE' | 'PUBLIC',
+): string | null {
+  try {
+    const pem = Buffer.from(raw, 'base64').toString('utf8');
+    const beginMarker = new RegExp(`-----BEGIN [A-Z ]*${kind} KEY-----`, 'm');
+    const endMarker = new RegExp(`-----END [A-Z ]*${kind} KEY-----`, 'm');
+    if (!beginMarker.test(pem) || !endMarker.test(pem)) return null;
+    return pem;
+  } catch {
+    return null;
+  }
+}
 
 const base64Pem = (label: string, kind: 'PRIVATE' | 'PUBLIC') =>
   z
     .string()
     .min(1, `${label} is required`)
     .transform((val, ctx) => {
-      const pem = Buffer.from(val, 'base64').toString('utf8');
-      const beginMarker = new RegExp(`-----BEGIN [A-Z ]*${kind} KEY-----`, 'm');
-      const endMarker = new RegExp(`-----END [A-Z ]*${kind} KEY-----`, 'm');
-      if (!beginMarker.test(pem) || !endMarker.test(pem)) {
+      const pem = decodeBase64Pem(val, kind);
+      if (!pem) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `${label} must be a base64-encoded PEM ${kind.toLowerCase()} key`,
@@ -18,6 +32,8 @@ const base64Pem = (label: string, kind: 'PRIVATE' | 'PUBLIC') =>
       }
       return pem;
     });
+
+const kidPattern = /^[A-Za-z0-9._-]{1,64}$/;
 
 const envSchema = z
   .object({
@@ -57,8 +73,75 @@ const envSchema = z
         return Number.isInteger(n) && n >= 0 ? n : true;
       }),
 
-    JWT_ACCESS_PRIVATE_KEY: base64Pem('JWT_ACCESS_PRIVATE_KEY', 'PRIVATE'),
-    JWT_ACCESS_PUBLIC_KEY: base64Pem('JWT_ACCESS_PUBLIC_KEY', 'PUBLIC'),
+    JWT_ACCESS_CURRENT_KID: z
+      .string()
+      .min(1, 'JWT_ACCESS_CURRENT_KID is required')
+      .regex(
+        kidPattern,
+        'JWT_ACCESS_CURRENT_KID must match ^[A-Za-z0-9._-]{1,64}$',
+      ),
+    JWT_ACCESS_PRIVATE_KEY_CURRENT: base64Pem(
+      'JWT_ACCESS_PRIVATE_KEY_CURRENT',
+      'PRIVATE',
+    ),
+    JWT_ACCESS_PUBLIC_KEYS: z
+      .string()
+      .min(1, 'JWT_ACCESS_PUBLIC_KEYS is required')
+      .transform((val, ctx) => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(val);
+        } catch {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'JWT_ACCESS_PUBLIC_KEYS must be valid JSON',
+          });
+          return z.NEVER;
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              'JWT_ACCESS_PUBLIC_KEYS must be a JSON object mapping kid to base64-encoded PEM public key',
+          });
+          return z.NEVER;
+        }
+        const entries = Object.entries(parsed as Record<string, unknown>);
+        if (entries.length < 1 || entries.length > 10) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'JWT_ACCESS_PUBLIC_KEYS must contain 1-10 entries',
+          });
+          return z.NEVER;
+        }
+        const out: Record<string, string> = {};
+        for (const [kid, raw] of entries) {
+          if (!kidPattern.test(kid)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `JWT_ACCESS_PUBLIC_KEYS kid "${kid}" must match ^[A-Za-z0-9._-]{1,64}$`,
+            });
+            return z.NEVER;
+          }
+          if (typeof raw !== 'string') {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `JWT_ACCESS_PUBLIC_KEYS["${kid}"] must be a base64-encoded PEM public key`,
+            });
+            return z.NEVER;
+          }
+          const pem = decodeBase64Pem(raw, 'PUBLIC');
+          if (!pem) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `JWT_ACCESS_PUBLIC_KEYS["${kid}"] must be a base64-encoded PEM public key`,
+            });
+            return z.NEVER;
+          }
+          out[kid] = pem;
+        }
+        return out;
+      }),
     JWT_ACCESS_EXPIRES_IN: z
       .string()
       .default('15m')
@@ -156,7 +239,38 @@ const envSchema = z
   )
   .refine((data) => data.EMAIL_PROVIDER !== 'resend' || !!data.RESEND_API_KEY, {
     message: 'RESEND_API_KEY must be set when EMAIL_PROVIDER=resend',
-  });
+  })
+  .refine(
+    (data) =>
+      data.JWT_ACCESS_PUBLIC_KEYS[data.JWT_ACCESS_CURRENT_KID] !== undefined,
+    {
+      message: 'JWT_ACCESS_CURRENT_KID must be a key in JWT_ACCESS_PUBLIC_KEYS',
+    },
+  )
+  .refine(
+    (data) => {
+      const declaredPem =
+        data.JWT_ACCESS_PUBLIC_KEYS[data.JWT_ACCESS_CURRENT_KID];
+      if (!declaredPem) return true;
+      try {
+        const derived = crypto
+          .createPublicKey(data.JWT_ACCESS_PRIVATE_KEY_CURRENT)
+          .export({ type: 'spki', format: 'pem' })
+          .toString();
+        const declared = crypto
+          .createPublicKey(declaredPem)
+          .export({ type: 'spki', format: 'pem' })
+          .toString();
+        return derived === declared;
+      } catch {
+        return false;
+      }
+    },
+    {
+      message:
+        'JWT_ACCESS_PRIVATE_KEY_CURRENT does not match JWT_ACCESS_PUBLIC_KEYS[JWT_ACCESS_CURRENT_KID]',
+    },
+  );
 
 export type Env = z.infer<typeof envSchema>;
 
