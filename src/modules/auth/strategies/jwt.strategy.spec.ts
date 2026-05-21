@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from './jwt.strategy';
+import { JwtKeyResolverService } from '../services/jwt-key-resolver.service';
 import { SessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
 import { Session } from '@modules/sessions/entities/session.entity';
 
@@ -19,6 +20,7 @@ const baseSession = (overrides: Partial<Session> = {}): Session => ({
 describe('JwtStrategy', () => {
   let sessions: jest.Mocked<SessionsRepository>;
   let strategy: JwtStrategy;
+  const resolver = new JwtKeyResolverService();
 
   beforeEach(() => {
     sessions = {
@@ -30,7 +32,7 @@ describe('JwtStrategy', () => {
       revokeAllForUser: jest.fn(),
       deleteExpired: jest.fn(),
     };
-    strategy = new JwtStrategy(sessions);
+    strategy = new JwtStrategy(sessions, resolver);
   });
 
   it('maps sub to id and forwards sessionId when session is active', async () => {

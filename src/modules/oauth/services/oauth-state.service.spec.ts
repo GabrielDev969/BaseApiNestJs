@@ -1,18 +1,27 @@
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
 import { OAuthStateService } from './oauth-state.service';
-import { env } from 'src/config/env.config';
+import { JwtKeyResolverService } from '@modules/auth/services/jwt-key-resolver.service';
+
+function decodeHeader(token: string): Record<string, unknown> {
+  return JSON.parse(
+    Buffer.from(token.split('.')[0], 'base64url').toString('utf8'),
+  );
+}
 
 describe('OAuthStateService', () => {
   const jwt = new JwtService({});
-  const service = new OAuthStateService(jwt);
+  const resolver = new JwtKeyResolverService();
+  const service = new OAuthStateService(jwt, resolver);
 
-  it('round-trips a state token and exposes the raw nonce', async () => {
+  it('round-trips a state token (kid set in header) and exposes the raw nonce', async () => {
     const { state, nonce } = await service.sign({
       provider: 'google',
       intent: 'login',
       redirectUri: 'http://app.example.com/callback',
     });
+
+    expect(decodeHeader(state).kid).toBe(resolver.currentKid);
 
     const payload = await service.verify(state);
 
@@ -53,7 +62,29 @@ describe('OAuthStateService', () => {
         nonce: 'x',
       },
       {
-        privateKey: env.JWT_ACCESS_PRIVATE_KEY,
+        privateKey: resolver.currentPrivateKey,
+        keyid: resolver.currentKid,
+        expiresIn: '5m',
+        algorithm: 'RS256',
+      },
+    );
+
+    await expect(service.verify(token)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects a token signed with an unknown kid', async () => {
+    const token = await jwt.signAsync(
+      {
+        provider: 'google',
+        intent: 'login',
+        type: 'oauth-state',
+        nonce: 'x',
+      },
+      {
+        privateKey: resolver.currentPrivateKey,
+        keyid: 'not-a-real-kid',
         expiresIn: '5m',
         algorithm: 'RS256',
       },

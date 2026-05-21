@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from '@modules/auth/auth.module';
+import { JwtKeyResolverModule } from '@modules/auth/jwt-key-resolver.module';
 import { UsersModule } from '@modules/users/users.module';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 import { AuditModule } from '@modules/audit/audit.module';
@@ -19,6 +20,7 @@ import { UnlinkOAuthAccountUseCase } from './use-cases/unlink-oauth-account.use-
 @Module({
   imports: [
     JwtModule.register({}),
+    JwtKeyResolverModule,
     AuthModule,
     UsersModule,
     WorkspacesModule,

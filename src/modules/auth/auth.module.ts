@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { JwtKeyResolverModule } from './jwt-key-resolver.module';
 import { SessionsModule } from '../sessions/sessions.module';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './http/auth.controller';
@@ -31,6 +32,7 @@ import { AuditModule } from '@modules/audit/audit.module';
   imports: [
     PassportModule,
     JwtModule.register({}),
+    JwtKeyResolverModule,
     UsersModule,
     SessionsModule,
     WorkspacesModule,
