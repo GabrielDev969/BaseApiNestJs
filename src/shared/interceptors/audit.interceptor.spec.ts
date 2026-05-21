@@ -208,7 +208,7 @@ describe('AuditInterceptor', () => {
     );
   });
 
-  it('falls back to req.url when route.path is missing and recursively sanitizes nested secrets and arrays', async () => {
+  it('falls back to req.url when route.path is missing and recursively sanitizes nested objects', async () => {
     const ctx = buildContext(
       { action: 'user.update', resource: 'user' },
       {
@@ -218,7 +218,7 @@ describe('AuditInterceptor', () => {
         query: {},
         body: {
           profile: { secret: 'shh', name: 'Jane' },
-          tokens: [{ token: 'abc', label: 'one' }],
+          items: [{ label: 'one', value: 'two' }],
         },
         headers: {},
       },
@@ -234,7 +234,7 @@ describe('AuditInterceptor', () => {
           path: '/api/v1/users/u1',
           body: {
             profile: { secret: '[REDACTED]', name: 'Jane' },
-            tokens: [{ token: '[REDACTED]', label: 'one' }],
+            items: [{ label: 'one', value: 'two' }],
           },
         }),
       }),
@@ -260,6 +260,91 @@ describe('AuditInterceptor', () => {
       firstValueFrom(interceptor.intercept(ctx, next)),
     ).resolves.toEqual({ id: 'u1' });
     await new Promise((r) => setImmediate(r));
+  });
+
+  it('redacts camelCase and unfamiliar credential field names (regex-based denylist)', async () => {
+    const ctx = buildContext(
+      { action: 'integration.created', resource: 'integration' },
+      {
+        method: 'POST',
+        url: '/api/v1/integrations',
+        params: {},
+        query: {},
+        body: {
+          name: 'GitHub',
+          apiKey: 'gh_1234567890',
+          clientSecret: 'shhh',
+          newPassword: 'StrongPass@1',
+          accessToken: 'tk_abc',
+          cvvCode: '123',
+          userPin: '4321',
+          customerSsn: '111-22-3333',
+          ownerCpf: '111.222.333-44',
+          billingAddress: '742 Evergreen Terrace',
+          birthDate: '1990-01-01',
+          cardNumber: '4242 4242 4242 4242',
+          totpSecret: 'OTPSEED',
+          sessionCookie: 'sid=abc',
+          authorizationHeader: 'Bearer xyz',
+          passwordHashLeak: 'argon2id$...',
+        },
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ id: 'i1' }) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    const payload = audit.log.mock.calls[0][0];
+    const body = (payload.metadata as { body: Record<string, unknown> }).body;
+    expect(body.name).toBe('GitHub');
+    for (const key of [
+      'apiKey',
+      'clientSecret',
+      'newPassword',
+      'accessToken',
+      'cvvCode',
+      'userPin',
+      'customerSsn',
+      'ownerCpf',
+      'billingAddress',
+      'birthDate',
+      'cardNumber',
+      'totpSecret',
+      'sessionCookie',
+      'authorizationHeader',
+      'passwordHashLeak',
+    ]) {
+      expect(body[key]).toBe('[REDACTED]');
+    }
+  });
+
+  it('truncates long string values past 200 chars with a suffix', async () => {
+    const longValue = 'a'.repeat(500);
+    const ctx = buildContext(
+      { action: 'note.created', resource: 'note' },
+      {
+        method: 'POST',
+        url: '/api/v1/notes',
+        params: {},
+        query: {},
+        body: { content: longValue, short: 'ok' },
+        headers: {},
+      },
+    );
+    const next: CallHandler = { handle: () => of({ id: 'n1' }) };
+
+    await firstValueFrom(interceptor.intercept(ctx, next));
+    await new Promise((r) => setImmediate(r));
+
+    const body = (
+      audit.log.mock.calls[0][0].metadata as { body: Record<string, string> }
+    ).body;
+    expect(body.short).toBe('ok');
+    expect(body.content.length).toBe(200 + '...[truncated]'.length);
+    expect(body.content.endsWith('...[truncated]')).toBe(true);
+    expect(body.content.startsWith('aaaa')).toBe(true);
   });
 
   it('reads resourceId from params when configured with resourceIdFrom: param', async () => {

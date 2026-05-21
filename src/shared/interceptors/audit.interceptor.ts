@@ -16,17 +16,16 @@ type AuditRequest = Request & {
   workspace?: { id: string };
 };
 
-const SENSITIVE_FIELDS = [
-  'password',
-  'passwordhash',
-  'refreshtoken',
-  'accesstoken',
-  'token',
-  'secret',
-  'twofactorsecret',
-  'recoverycodes',
-  'authorization',
-];
+// Match anything that smells like a credential, secret, or PII. Denylist
+// rather than allowlist because we want to keep most request shape visible
+// for forensics; but the cost of a missed credential is far higher than a
+// missed audit field. Anchored substrings so e.g. `clientSecret`, `apiKey`,
+// `newPassword`, `cvvCode`, `userCpf` are all matched.
+const SENSITIVE_FIELD_PATTERN =
+  /(pass|secret|token|key|credential|auth|cookie|cvv|pin|otp|hash|salt|nonce|ssn|cpf|cnpj|rg|birth|dob|phone|address|card)/i;
+
+const MAX_VALUE_LENGTH = 200;
+const TRUNCATION_SUFFIX = '...[truncated]';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -104,19 +103,24 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private sanitize(value: unknown): unknown {
-    if (!value || typeof value !== 'object') return value;
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'string') return this.truncate(value);
+    if (typeof value !== 'object') return value;
     if (Array.isArray(value)) return value.map((v) => this.sanitize(v));
 
     const clone: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-      if (SENSITIVE_FIELDS.includes(key.toLowerCase())) {
+      if (SENSITIVE_FIELD_PATTERN.test(key)) {
         clone[key] = '[REDACTED]';
-      } else if (val && typeof val === 'object') {
-        clone[key] = this.sanitize(val);
       } else {
-        clone[key] = val;
+        clone[key] = this.sanitize(val);
       }
     }
     return clone;
+  }
+
+  private truncate(value: string): string {
+    if (value.length <= MAX_VALUE_LENGTH) return value;
+    return value.slice(0, MAX_VALUE_LENGTH) + TRUNCATION_SUFFIX;
   }
 }
