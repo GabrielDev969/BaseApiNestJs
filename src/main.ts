@@ -36,7 +36,7 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix('api', {
-    exclude: ['health', 'health/ready', 'metrics'],
+    exclude: ['health', 'health/ready', 'metrics', '.well-known/jwks.json'],
   });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 

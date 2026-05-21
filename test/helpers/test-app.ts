@@ -35,7 +35,9 @@ export async function createTestApp(): Promise<TestAppHandle> {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'health/ready', 'metrics', '.well-known/jwks.json'],
+  });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   await app.init();

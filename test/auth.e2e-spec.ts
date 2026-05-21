@@ -8,6 +8,8 @@ import {
 } from './helpers/test-database';
 import type { TestEmailDispatcher } from './helpers/test-email-dispatcher';
 import { registerAndVerify } from './helpers/auth-flow';
+import { JwtService } from '@nestjs/jwt';
+import { __TEST_JWT_KEYS__ } from './env';
 
 describe('Auth flow (e2e)', () => {
   let app: INestApplication;
@@ -239,5 +241,96 @@ describe('Auth flow (e2e)', () => {
       await new Promise((r) => setTimeout(r, 50));
     }
     expect(actions).toEqual(expect.arrayContaining(expected));
+  });
+
+  it('access tokens issued by /login carry the active kid in the JOSE header', async () => {
+    await registerAndVerify(server, emailDispatcher, credentials);
+
+    const login = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+
+    const header = JSON.parse(
+      Buffer.from(
+        (login.body.accessToken as string).split('.')[0],
+        'base64url',
+      ).toString('utf8'),
+    ) as { kid?: string; alg?: string };
+
+    expect(header.alg).toBe('RS256');
+    expect(header.kid).toBe(__TEST_JWT_KEYS__.currentKid);
+  });
+
+  it('an access token signed by a previous (overlap) kid still verifies', async () => {
+    await registerAndVerify(server, emailDispatcher, credentials);
+
+    const login = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+
+    const payload = JSON.parse(
+      Buffer.from(
+        (login.body.accessToken as string).split('.')[1],
+        'base64url',
+      ).toString('utf8'),
+    ) as { sub: string; sessionId: string };
+
+    const previousPrivatePem = Buffer.from(
+      __TEST_JWT_KEYS__.previousPrivateKeyBase64,
+      'base64',
+    ).toString('utf8');
+
+    const overlapToken = await new JwtService({}).signAsync(
+      { sub: payload.sub, sessionId: payload.sessionId },
+      {
+        privateKey: previousPrivatePem,
+        keyid: __TEST_JWT_KEYS__.previousKid,
+        expiresIn: '15m',
+        algorithm: 'RS256',
+      },
+    );
+
+    await request(server)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${overlapToken}`)
+      .expect(200);
+  });
+
+  it('an access token signed by an unknown kid is rejected with 401', async () => {
+    await registerAndVerify(server, emailDispatcher, credentials);
+
+    const login = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: credentials.email, password: credentials.password })
+      .expect(200);
+
+    const payload = JSON.parse(
+      Buffer.from(
+        (login.body.accessToken as string).split('.')[1],
+        'base64url',
+      ).toString('utf8'),
+    ) as { sub: string; sessionId: string };
+
+    const currentPrivatePem = Buffer.from(
+      __TEST_JWT_KEYS__.currentPrivateKeyBase64,
+      'base64',
+    ).toString('utf8');
+
+    const rogue = await new JwtService({}).signAsync(
+      { sub: payload.sub, sessionId: payload.sessionId },
+      {
+        privateKey: currentPrivatePem,
+        keyid: 'not-in-the-map',
+        expiresIn: '15m',
+        algorithm: 'RS256',
+      },
+    );
+
+    await request(server)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${rogue}`)
+      .expect(401);
   });
 });

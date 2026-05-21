@@ -27,6 +27,7 @@ import { SessionsModule } from '@modules/sessions/sessions.module';
 import { InvitationsModule } from '@modules/invitations/invitations.module';
 import { HealthModule } from '@modules/health/health.module';
 import { OAuthModule } from '@modules/oauth/oauth.module';
+import { WellKnownModule } from '@modules/well-known/well-known.module';
 import { MaintenanceModule } from '@shared/maintenance/maintenance.module';
 
 @Module({
@@ -72,6 +73,7 @@ import { MaintenanceModule } from '@shared/maintenance/maintenance.module';
     AuditModule,
     HealthModule,
     OAuthModule,
+    WellKnownModule,
     MaintenanceModule,
   ],
   controllers: [],
