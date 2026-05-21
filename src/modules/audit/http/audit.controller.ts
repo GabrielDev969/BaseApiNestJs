@@ -6,8 +6,10 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { ListAuditLogsUseCase } from '../use-cases/list-audit-logs.use-case';
+import { VerifyAuditChainUseCase } from '../use-cases/verify-audit-chain.use-case';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { AuditLogResponseDto } from './dto/audit-log-response.dto';
+import { VerifyAuditChainResponseDto } from './dto/verify-audit-chain-response.dto';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { RequirePermissions } from '@shared/decorators/require-permissions.decorator';
@@ -26,7 +28,23 @@ import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator
 @Controller({ path: 'audit-logs', version: '1' })
 @UseGuards(WorkspaceGuard, PermissionsGuard)
 export class AuditController {
-  constructor(private readonly listAuditLogs: ListAuditLogsUseCase) {}
+  constructor(
+    private readonly listAuditLogs: ListAuditLogsUseCase,
+    private readonly verifyChain: VerifyAuditChainUseCase,
+  ) {}
+
+  @Get('verify')
+  @RequirePermissions(PERMISSIONS.AUDIT.READ)
+  @ApiOperation({
+    summary:
+      'Verify the hash chain of audit logs (tamper-evidence). Walks every row.',
+  })
+  @ApiResponse({ status: 200, type: VerifyAuditChainResponseDto })
+  @ApiAuthErrors()
+  @ApiServerError()
+  async verify(): Promise<VerifyAuditChainResponseDto> {
+    return this.verifyChain.execute();
+  }
 
   @Get()
   @RequirePermissions(PERMISSIONS.AUDIT.READ)
