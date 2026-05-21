@@ -8,5 +8,7 @@ export class AuditLog {
   metadata: Record<string, any> | null;
   ipAddress: string | null;
   userAgent: string | null;
+  prevHash: string | null;
+  hash: string;
   createdAt: Date;
 }

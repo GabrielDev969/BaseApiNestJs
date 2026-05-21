@@ -27,8 +27,18 @@ export interface FindAuditLogsResult {
   total: number;
 }
 
+export interface AuditLogChainPage {
+  items: AuditLog[];
+  nextCursor: string | null;
+}
+
 export abstract class AuditLogsRepository {
   abstract create(data: CreateAuditLogData): Promise<AuditLog>;
   abstract findMany(params: FindAuditLogsParams): Promise<FindAuditLogsResult>;
   abstract deleteOlderThan(cutoff: Date): Promise<number>;
+  abstract countAll(): Promise<number>;
+  abstract iterateChainAsc(
+    afterId: string | null,
+    pageSize: number,
+  ): Promise<AuditLogChainPage>;
 }

@@ -195,11 +195,14 @@ model AuditLog {
   userId      String?
   workspaceId String?
   action      String
-  resource    String? 
+  resource    String?
   resourceId  String?
   metadata    Json?
   ipAddress   String?
   userAgent   String?
+
+  prevHash String?
+  hash     String  @unique
 
   user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)

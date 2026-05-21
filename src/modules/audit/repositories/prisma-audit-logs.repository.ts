@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
 import {
+  AuditLogChainPage,
   AuditLogsRepository,
   CreateAuditLogData,
   FindAuditLogsParams,
@@ -9,6 +11,41 @@ import { AuditLog } from '../entities/audit-log.entity';
 import { AuditLog as PrismaAuditLog, Prisma } from '@prisma/client';
 import { PrismaService } from '@shared/database/prisma.service';
 
+// Arbitrary stable bigint passed to pg_advisory_xact_lock so concurrent
+// audit-log inserts serialize on the chain and can't fork prevHash.
+const CHAIN_LOCK_KEY = 0xa1d11_1067n;
+
+export function computeAuditHash(
+  prevHash: string | null,
+  fields: {
+    id: string;
+    userId: string | null;
+    workspaceId: string | null;
+    action: string;
+    resource: string | null;
+    resourceId: string | null;
+    metadata: unknown;
+    ipAddress: string | null;
+    userAgent: string | null;
+    createdAt: Date;
+  },
+): string {
+  const canonical = JSON.stringify({
+    prevHash,
+    id: fields.id,
+    userId: fields.userId,
+    workspaceId: fields.workspaceId,
+    action: fields.action,
+    resource: fields.resource,
+    resourceId: fields.resourceId,
+    metadata: fields.metadata ?? null,
+    ipAddress: fields.ipAddress,
+    userAgent: fields.userAgent,
+    createdAt: fields.createdAt.toISOString(),
+  });
+  return crypto.createHash('sha256').update(canonical).digest('hex');
+}
+
 @Injectable()
 export class PrismaAuditLogsRepository extends AuditLogsRepository {
   constructor(private prisma: PrismaService) {
@@ -16,13 +53,50 @@ export class PrismaAuditLogsRepository extends AuditLogsRepository {
   }
 
   async create(data: CreateAuditLogData): Promise<AuditLog> {
-    const log = await this.prisma.auditLog.create({
-      data: {
-        ...data,
-        metadata: data.metadata ?? Prisma.JsonNull,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CHAIN_LOCK_KEY})`;
+
+      const last = await tx.auditLog.findFirst({
+        orderBy: { createdAt: 'desc' },
+        select: { hash: true },
+      });
+      const prevHash = last?.hash ?? null;
+
+      const id = crypto.randomUUID();
+      const createdAt = new Date();
+      const metadata = data.metadata ?? null;
+
+      const hash = computeAuditHash(prevHash, {
+        id,
+        userId: data.userId ?? null,
+        workspaceId: data.workspaceId ?? null,
+        action: data.action,
+        resource: data.resource ?? null,
+        resourceId: data.resourceId ?? null,
+        metadata,
+        ipAddress: data.ipAddress ?? null,
+        userAgent: data.userAgent ?? null,
+        createdAt,
+      });
+
+      const log = await tx.auditLog.create({
+        data: {
+          id,
+          userId: data.userId,
+          workspaceId: data.workspaceId,
+          action: data.action,
+          resource: data.resource,
+          resourceId: data.resourceId,
+          metadata: metadata ?? Prisma.JsonNull,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          createdAt,
+          prevHash,
+          hash,
+        },
+      });
+      return this.toEntity(log);
     });
-    return this.toEntity(log);
   }
 
   async findMany(params: FindAuditLogsParams): Promise<FindAuditLogsResult> {
@@ -68,6 +142,26 @@ export class PrismaAuditLogsRepository extends AuditLogsRepository {
     return result.count;
   }
 
+  async countAll(): Promise<number> {
+    return this.prisma.auditLog.count();
+  }
+
+  async iterateChainAsc(
+    afterId: string | null,
+    pageSize: number,
+  ): Promise<AuditLogChainPage> {
+    const items = await this.prisma.auditLog.findMany({
+      ...(afterId ? { cursor: { id: afterId }, skip: 1 } : {}),
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: pageSize,
+    });
+    const last = items[items.length - 1];
+    return {
+      items: items.map((l) => this.toEntity(l)),
+      nextCursor: items.length === pageSize && last ? last.id : null,
+    };
+  }
+
   private toEntity(raw: PrismaAuditLog): AuditLog {
     return {
       id: raw.id,
@@ -79,6 +173,8 @@ export class PrismaAuditLogsRepository extends AuditLogsRepository {
       metadata: raw.metadata as Record<string, unknown> | null,
       ipAddress: raw.ipAddress,
       userAgent: raw.userAgent,
+      prevHash: raw.prevHash,
+      hash: raw.hash,
       createdAt: raw.createdAt,
     };
   }
