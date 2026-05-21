@@ -223,17 +223,21 @@ describe('Auth flow (e2e)', () => {
       .set('Authorization', `Bearer ${login.body.accessToken}`)
       .expect(204);
 
-    const logs = (await prisma.auditLog.findMany({
-      orderBy: { createdAt: 'asc' },
-    })) as Array<{ action: string }>;
-    const actions = logs.map((l) => l.action);
-    expect(actions).toEqual(
-      expect.arrayContaining([
-        'auth.register',
-        'auth.login.failure',
-        'auth.login.success',
-        'auth.logout',
-      ]),
-    );
+    const expected = [
+      'auth.register',
+      'auth.login.failure',
+      'auth.login.success',
+      'auth.logout',
+    ];
+    let actions: string[] = [];
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const logs = (await prisma.auditLog.findMany({
+        orderBy: { createdAt: 'asc' },
+      })) as Array<{ action: string }>;
+      actions = logs.map((l) => l.action);
+      if (expected.every((a) => actions.includes(a))) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(actions).toEqual(expect.arrayContaining(expected));
   });
 });
