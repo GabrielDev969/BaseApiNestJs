@@ -7,6 +7,7 @@ import {
 import { WorkspaceMembersRepository } from '../repositories/workspace-members.repository.interface';
 import { WorkspacesRepository } from '../repositories/workspaces.repository.interface';
 import { RolesRepository } from '@modules/rbac/repositories/roles.repository.interface';
+import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { WorkspaceMember } from '../entities/workspace-member.entity';
 
 interface UpdateMemberRoleInput {
@@ -21,6 +22,7 @@ export class UpdateMemberRoleUseCase {
     private readonly members: WorkspaceMembersRepository,
     private readonly workspaces: WorkspacesRepository,
     private readonly roles: RolesRepository,
+    private readonly users: UsersRepository,
   ) {}
 
   async execute(input: UpdateMemberRoleInput): Promise<WorkspaceMember> {
@@ -44,6 +46,8 @@ export class UpdateMemberRoleUseCase {
       throw new BadRequestException('Role not found in this workspace');
     }
 
-    return this.members.updateRole(input.memberId, input.roleId);
+    const updated = await this.members.updateRole(input.memberId, input.roleId);
+    await this.users.invalidateTokens(member.userId);
+    return updated;
   }
 }

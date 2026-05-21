@@ -71,5 +71,7 @@ export class TransferOwnershipUseCase {
       ownerRoleId: ownerRole.id,
       adminRoleId: adminRole.id,
     });
+    await this.users.invalidateTokens(input.callerUserId);
+    await this.users.invalidateTokens(target.userId);
   }
 }

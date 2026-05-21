@@ -28,6 +28,7 @@ function setup() {
   } as unknown as jest.Mocked<RolesRepository>;
   const users = {
     findById: jest.fn(),
+    invalidateTokens: jest.fn(),
   } as unknown as jest.Mocked<UsersRepository>;
   return {
     useCase: new TransferOwnershipUseCase(workspaces, members, roles, users),
@@ -129,7 +130,7 @@ describe('TransferOwnershipUseCase', () => {
     );
   });
 
-  it('calls transferOwnership with correct role ids on the happy path', async () => {
+  it('calls transferOwnership with correct role ids and invalidates both users on the happy path', async () => {
     const { useCase, workspaces, users, members, roles } = setup();
     workspaces.findById.mockResolvedValue(workspace);
     users.findById.mockResolvedValue(ownerUser);
@@ -145,5 +146,7 @@ describe('TransferOwnershipUseCase', () => {
       ownerRoleId: 'r-owner',
       adminRoleId: 'r-admin',
     });
+    expect(users.invalidateTokens).toHaveBeenCalledWith('u-owner');
+    expect(users.invalidateTokens).toHaveBeenCalledWith('u-new');
   });
 });

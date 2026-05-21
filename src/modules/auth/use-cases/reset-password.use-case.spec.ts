@@ -14,6 +14,7 @@ describe('ResetPasswordUseCase', () => {
   beforeEach(() => {
     users = {
       update: jest.fn(),
+      invalidateTokens: jest.fn(),
     } as unknown as jest.Mocked<UsersRepository>;
     tokens = {
       findByTokenHash: jest.fn(),
@@ -77,5 +78,6 @@ describe('ResetPasswordUseCase', () => {
     ).resolves.toBe(true);
     expect(tokens.markUsed).toHaveBeenCalledWith('t1');
     expect(sessions.revokeAllForUser).toHaveBeenCalledWith('u1');
+    expect(users.invalidateTokens).toHaveBeenCalledWith('u1');
   });
 });

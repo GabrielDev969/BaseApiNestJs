@@ -26,6 +26,7 @@ export class ResetPasswordUseCase {
 
     const passwordHash = await CryptoUtil.hashPassword(input.newPassword);
     await this.users.update(record.userId, { passwordHash });
+    await this.users.invalidateTokens(record.userId);
     await this.tokens.markUsed(record.id);
     await this.sessions.revokeAllForUser(record.userId);
   }

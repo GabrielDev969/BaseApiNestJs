@@ -7,6 +7,7 @@ import { UpdateMemberRoleUseCase } from './update-member-role.use-case';
 import { WorkspaceMembersRepository } from '../repositories/workspace-members.repository.interface';
 import { WorkspacesRepository } from '../repositories/workspaces.repository.interface';
 import { RolesRepository } from '@modules/rbac/repositories/roles.repository.interface';
+import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import type { WorkspaceMember } from '../entities/workspace-member.entity';
 import type { Workspace } from '../entities/workspace.entity';
 import type { RoleWithPermissions } from '@modules/rbac/repositories/roles.repository.interface';
@@ -22,11 +23,15 @@ function setup() {
   const roles = {
     findByIdInWorkspace: jest.fn(),
   } as unknown as jest.Mocked<RolesRepository>;
+  const users = {
+    invalidateTokens: jest.fn(),
+  } as unknown as jest.Mocked<UsersRepository>;
   return {
-    useCase: new UpdateMemberRoleUseCase(members, workspaces, roles),
+    useCase: new UpdateMemberRoleUseCase(members, workspaces, roles, users),
     members,
     workspaces,
     roles,
+    users,
   };
 }
 
@@ -84,8 +89,8 @@ describe('UpdateMemberRoleUseCase', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('updates the role when all checks pass', async () => {
-    const { useCase, members, workspaces, roles } = setup();
+  it('updates the role and invalidates the member tokens when all checks pass', async () => {
+    const { useCase, members, workspaces, roles, users } = setup();
     members.findById.mockResolvedValue(baseMember());
     workspaces.findById.mockResolvedValue(baseWorkspace());
     roles.findByIdInWorkspace.mockResolvedValue({
@@ -96,5 +101,6 @@ describe('UpdateMemberRoleUseCase', () => {
     await useCase.execute({ workspaceId: 'w1', memberId: 'm1', roleId: 'r2' });
 
     expect(members.updateRole).toHaveBeenCalledWith('m1', 'r2');
+    expect(users.invalidateTokens).toHaveBeenCalledWith('u2');
   });
 });

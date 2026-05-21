@@ -243,9 +243,17 @@ describe('Workspace members (e2e)', () => {
       .send({ targetMemberId: bob.memberId, password: PASSWORD })
       .expect(204);
 
+    await new Promise((r) => setTimeout(r, 1100));
+
+    const newOwnerLogin = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: 'b@example.com', password: PASSWORD })
+      .expect(200);
+    const newOwnerToken = newOwnerLogin.body.accessToken as string;
+
     const list = await request(server)
       .get(`/api/v1/workspaces/${workspaceId}/members`)
-      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Authorization', `Bearer ${newOwnerToken}`)
       .set('x-workspace-id', workspaceId);
 
     const byEmail = new Map(
@@ -258,7 +266,7 @@ describe('Workspace members (e2e)', () => {
 
     const ws = await request(server)
       .get(`/api/v1/workspaces/${workspaceId}`)
-      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('Authorization', `Bearer ${newOwnerToken}`)
       .set('x-workspace-id', workspaceId);
     expect((ws.body as { ownerId: string }).ownerId).not.toBe(undefined);
   });
@@ -296,5 +304,52 @@ describe('Workspace members (e2e)', () => {
       .set('x-workspace-id', workspaceId)
       .send({ targetMemberId: bob.memberId, password: PASSWORD })
       .expect(403);
+  });
+
+  it('role change invalidates the target member existing access token', async () => {
+    const { ownerToken, workspaceId } = await ownerSetup();
+    const bob = await inviteAndAccept(
+      ownerToken,
+      workspaceId,
+      'b@example.com',
+      'Bob',
+    );
+
+    await request(server)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${bob.accessToken}`)
+      .expect(200);
+
+    const rolesRes = await request(server)
+      .get('/api/v1/rbac/roles')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('x-workspace-id', workspaceId);
+    const adminRole = (rolesRes.body as { id: string; name: string }[]).find(
+      (r) => r.name === 'Admin',
+    ) as { id: string };
+
+    await request(server)
+      .patch(`/api/v1/workspaces/${workspaceId}/members/${bob.memberId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .set('x-workspace-id', workspaceId)
+      .send({ roleId: adminRole.id })
+      .expect(200);
+
+    await request(server)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${bob.accessToken}`)
+      .expect(401);
+
+    await new Promise((r) => setTimeout(r, 1100));
+
+    const newLogin = await request(server)
+      .post('/api/v1/auth/login')
+      .send({ email: 'b@example.com', password: PASSWORD })
+      .expect(200);
+
+    await request(server)
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${newLogin.body.accessToken}`)
+      .expect(200);
   });
 });
