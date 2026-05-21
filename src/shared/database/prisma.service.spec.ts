@@ -25,11 +25,13 @@ jest.mock('@prisma/client', () => ({
 }));
 
 const poolEnd = jest.fn().mockResolvedValue(undefined);
+const poolCtor = jest.fn();
 jest.mock('pg', () => ({
   __esModule: true,
-  Pool: jest.fn().mockImplementation(() => ({
-    end: poolEnd,
-  })),
+  Pool: jest.fn().mockImplementation((args: unknown) => {
+    poolCtor(args);
+    return { end: poolEnd };
+  }),
 }));
 
 jest.mock('@prisma/adapter-pg', () => ({
@@ -54,6 +56,7 @@ describe('PrismaService', () => {
     $connect.mockClear();
     $disconnect.mockClear();
     poolEnd.mockClear();
+    poolCtor.mockClear();
 
     metrics = { observeQuery: jest.fn() };
     warnSpy = jest
@@ -143,5 +146,21 @@ describe('PrismaService', () => {
 
     expect($disconnect).toHaveBeenCalledTimes(1);
     expect(poolEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds its own pool per instance (no top-level singleton)', async () => {
+    const initialPoolCalls = poolCtor.mock.calls.length;
+    poolEnd.mockClear();
+
+    const second = new PrismaService(metrics as unknown as MetricsService);
+    await second.onModuleInit();
+
+    expect(poolCtor).toHaveBeenCalledTimes(initialPoolCalls + 1);
+
+    await service.onModuleDestroy();
+    await second.onModuleDestroy();
+
+    // Each instance closes its own pool on destroy.
+    expect(poolEnd).toHaveBeenCalledTimes(2);
   });
 });

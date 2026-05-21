@@ -10,19 +10,10 @@ import {
 import { Prisma, PrismaClient } from '@prisma/client';
 import { MetricsService, DbOperation } from '@shared/metrics/metrics.service';
 
-const pool = new Pool({
-  connectionString: env.DATABASE_URL,
-  max: env.DB_POOL_MAX,
-  idleTimeoutMillis: env.DB_POOL_IDLE_MS,
-  connectionTimeoutMillis: env.DB_POOL_CONN_TIMEOUT_MS,
-});
-
-const adapter = new PrismaPg(pool);
-
 @Injectable()
 export class PrismaService
   extends PrismaClient<{
-    adapter: typeof adapter;
+    adapter: PrismaPg;
     log: [
       { level: 'query'; emit: 'event' },
       { level: 'warn'; emit: 'event' },
@@ -32,16 +23,24 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);
+  private readonly pool: Pool;
 
   constructor(private readonly metrics: MetricsService) {
+    const pool = new Pool({
+      connectionString: env.DATABASE_URL,
+      max: env.DB_POOL_MAX,
+      idleTimeoutMillis: env.DB_POOL_IDLE_MS,
+      connectionTimeoutMillis: env.DB_POOL_CONN_TIMEOUT_MS,
+    });
     super({
-      adapter,
+      adapter: new PrismaPg(pool),
       log: [
         { level: 'query', emit: 'event' },
         { level: 'warn', emit: 'event' },
         { level: 'error', emit: 'event' },
       ],
     });
+    this.pool = pool;
   }
 
   async onModuleInit(): Promise<void> {
@@ -73,6 +72,6 @@ export class PrismaService
 
   async onModuleDestroy(): Promise<void> {
     await this.$disconnect();
-    await pool.end();
+    await this.pool.end();
   }
 }
