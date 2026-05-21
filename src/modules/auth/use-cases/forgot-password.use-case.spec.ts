@@ -31,14 +31,18 @@ describe('ForgotPasswordUseCase', () => {
     expect(tokens.create).not.toHaveBeenCalled();
   });
 
-  it('returns silently for OAuth-only user (no passwordHash)', async () => {
+  it('sends the reset email to OAuth-only users so they can set a password', async () => {
     users.findByEmail.mockResolvedValue({
       id: 'u1',
       email: 'a@b.c',
+      name: 'Jane',
       passwordHash: null,
     } as User);
     await useCase.execute('a@b.c');
-    expect(emailDispatcher.enqueue).not.toHaveBeenCalled();
+    expect(tokens.deletePendingForUser).toHaveBeenCalledWith('u1');
+    expect(tokens.create).toHaveBeenCalled();
+    expect(emailDispatcher.enqueue).toHaveBeenCalled();
+    expect(emailDispatcher.enqueue.mock.calls[0][0].to).toBe('a@b.c');
   });
 
   it('creates a token and enqueues the reset email', async () => {

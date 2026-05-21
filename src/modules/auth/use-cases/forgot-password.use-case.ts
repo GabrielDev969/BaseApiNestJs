@@ -22,7 +22,9 @@ export class ForgotPasswordUseCase {
 
   async execute(email: string): Promise<void> {
     const user = await this.users.findByEmail(email);
-    if (!user || !user.passwordHash) return;
+    // OAuth-only users (no passwordHash yet) can still use this flow to set
+    // a password for the first time — the reset endpoint just calls update.
+    if (!user) return;
 
     await this.tokens.deletePendingForUser(user.id);
 
