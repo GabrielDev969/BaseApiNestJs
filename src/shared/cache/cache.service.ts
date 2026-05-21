@@ -1,5 +1,18 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
+
+export const CACHE_NSVER_REDIS = 'CACHE_NSVER_REDIS';
+
+export interface NamespaceVersionPipeline {
+  setnx(key: string, value: string): NamespaceVersionPipeline;
+  incr(key: string): NamespaceVersionPipeline;
+  exec(): Promise<unknown>;
+}
+
+export interface NamespaceVersionStore {
+  get(key: string): Promise<string | null>;
+  multi(): NamespaceVersionPipeline;
+}
 
 @Injectable()
 export class CacheService implements OnModuleInit {
@@ -9,7 +22,12 @@ export class CacheService implements OnModuleInit {
     return CacheService._instance;
   }
 
-  constructor(@Inject(CACHE_MANAGER) private readonly cache: Cache) {}
+  constructor(
+    @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    @Optional()
+    @Inject(CACHE_NSVER_REDIS)
+    private readonly nsverRedis: NamespaceVersionStore | null = null,
+  ) {}
 
   onModuleInit(): void {
     CacheService._instance = this;
@@ -36,13 +54,23 @@ export class CacheService implements OnModuleInit {
   }
 
   async getNamespaceVersion(namespace: string): Promise<number> {
+    if (this.nsverRedis) {
+      const raw = await this.nsverRedis.get(this.versionKey(namespace));
+      const n = raw === null ? NaN : Number(raw);
+      return Number.isInteger(n) && n > 0 ? n : 1;
+    }
     const v = await this.cache.get<number>(this.versionKey(namespace));
     return typeof v === 'number' ? v : 1;
   }
 
   async bumpNamespace(namespace: string): Promise<void> {
+    const key = this.versionKey(namespace);
+    if (this.nsverRedis) {
+      await this.nsverRedis.multi().setnx(key, '1').incr(key).exec();
+      return;
+    }
     const next = (await this.getNamespaceVersion(namespace)) + 1;
-    await this.cache.set(this.versionKey(namespace), next);
+    await this.cache.set(key, next);
   }
 
   async buildKey(namespace: string, suffix: string): Promise<string> {

@@ -1,6 +1,46 @@
 import { createCache } from 'cache-manager';
 import type { Cache } from '@nestjs/cache-manager';
-import { CacheService } from './cache.service';
+import {
+  CacheService,
+  NamespaceVersionPipeline,
+  NamespaceVersionStore,
+} from './cache.service';
+
+class FakeNamespaceVersionStore implements NamespaceVersionStore {
+  private readonly store = new Map<string, number>();
+
+  get(key: string): Promise<string | null> {
+    const v = this.store.get(key);
+    return Promise.resolve(v === undefined ? null : String(v));
+  }
+
+  multi(): NamespaceVersionPipeline {
+    const ops: Array<() => unknown> = [];
+    const store = this.store;
+    const pipeline: NamespaceVersionPipeline = {
+      setnx(key: string, value: string) {
+        ops.push(() => {
+          if (store.has(key)) return 0;
+          store.set(key, Number(value));
+          return 1;
+        });
+        return pipeline;
+      },
+      incr(key: string) {
+        ops.push(() => {
+          const next = (store.get(key) ?? 0) + 1;
+          store.set(key, next);
+          return next;
+        });
+        return pipeline;
+      },
+      exec() {
+        return Promise.resolve(ops.map((op) => [null, op()]));
+      },
+    };
+    return pipeline;
+  }
+}
 
 describe('CacheService', () => {
   let svc: CacheService;
@@ -64,5 +104,44 @@ describe('CacheService', () => {
 
   it('static instance points to the initialized service', () => {
     expect(CacheService.instance).toBe(svc);
+  });
+
+  describe('with Redis namespace-version store', () => {
+    let nsver: FakeNamespaceVersionStore;
+    let redisSvc: CacheService;
+
+    beforeEach(() => {
+      const cache = createCache();
+      nsver = new FakeNamespaceVersionStore();
+      redisSvc = new CacheService(cache, nsver);
+      redisSvc.onModuleInit();
+    });
+
+    it('first bump initializes via SETNX+INCR and leaves version at 2', async () => {
+      expect(await redisSvc.getNamespaceVersion('users')).toBe(1);
+      await redisSvc.bumpNamespace('users');
+      expect(await redisSvc.getNamespaceVersion('users')).toBe(2);
+    });
+
+    it('subsequent bumps increment monotonically (atomic)', async () => {
+      await redisSvc.bumpNamespace('users');
+      await redisSvc.bumpNamespace('users');
+      await redisSvc.bumpNamespace('users');
+      expect(await redisSvc.getNamespaceVersion('users')).toBe(4);
+    });
+
+    it('100 concurrent bumps end on a distinct, monotonic counter (no lost updates)', async () => {
+      await Promise.all(
+        Array.from({ length: 100 }, () => redisSvc.bumpNamespace('users')),
+      );
+      expect(await redisSvc.getNamespaceVersion('users')).toBe(101);
+    });
+
+    it('falls back to default version when the stored value is corrupt', async () => {
+      const exec = nsver.multi();
+      exec.setnx('__nsver__:users', 'not-a-number');
+      await exec.exec();
+      expect(await redisSvc.getNamespaceVersion('users')).toBe(1);
+    });
   });
 });
