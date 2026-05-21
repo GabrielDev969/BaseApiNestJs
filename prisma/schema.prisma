@@ -19,6 +19,7 @@ model User {
   emailVerifiedAt      DateTime?
   failedLoginAttempts  Int       @default(0)
   lockedUntil          DateTime?
+  tokensInvalidatedAt  DateTime?
 
   oauthAccounts        OAuthAccount[]
   ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")

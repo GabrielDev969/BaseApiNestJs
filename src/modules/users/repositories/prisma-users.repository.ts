@@ -181,6 +181,27 @@ export class PrismaUsersRepository extends UsersRepository {
     });
   }
 
+  @Cacheable({
+    namespace: CACHE_NS.users,
+    key: (id: string) => `invalidatedAt:${id}`,
+    ttlMs: CACHE_TTL.fifteenSeconds,
+  })
+  async findTokensInvalidatedAt(id: string): Promise<Date | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { id },
+      select: { tokensInvalidatedAt: true },
+    });
+    return row?.tokensInvalidatedAt ?? null;
+  }
+
+  @InvalidateCache(CACHE_NS.users)
+  async invalidateTokens(id: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id },
+      data: { tokensInvalidatedAt: new Date() },
+    });
+  }
+
   private toEntity(raw: PrismaUser): User {
     return {
       id: raw.id,
@@ -193,6 +214,7 @@ export class PrismaUsersRepository extends UsersRepository {
       emailVerifiedAt: raw.emailVerifiedAt,
       failedLoginAttempts: raw.failedLoginAttempts,
       lockedUntil: raw.lockedUntil,
+      tokensInvalidatedAt: raw.tokensInvalidatedAt,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,

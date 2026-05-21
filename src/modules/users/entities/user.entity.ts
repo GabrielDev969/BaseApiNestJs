@@ -9,6 +9,7 @@ export class User {
   emailVerifiedAt: Date | null;
   failedLoginAttempts: number;
   lockedUntil: Date | null;
+  tokensInvalidatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

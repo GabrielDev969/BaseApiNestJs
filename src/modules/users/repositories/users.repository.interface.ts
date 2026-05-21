@@ -15,6 +15,7 @@ export interface UpdateUserData {
   twoFactorSecret?: string | null;
   recoveryCodes?: string | null;
   emailVerifiedAt?: Date | null;
+  tokensInvalidatedAt?: Date | null;
 }
 
 export interface FindManyByWorkspaceParams {
@@ -49,4 +50,6 @@ export abstract class UsersRepository {
   abstract incrementFailedLoginAttempts(id: string): Promise<number>;
   abstract lockAccount(id: string, until: Date): Promise<void>;
   abstract resetFailedLoginAttempts(id: string): Promise<void>;
+  abstract findTokensInvalidatedAt(id: string): Promise<Date | null>;
+  abstract invalidateTokens(id: string): Promise<void>;
 }

@@ -7,6 +7,7 @@ import { PrismaUsersRepository } from './prisma-users.repository';
 type UserClient = {
   create: jest.Mock;
   findFirst: jest.Mock;
+  findUnique: jest.Mock;
   findMany: jest.Mock;
   count: jest.Mock;
   update: jest.Mock;
@@ -47,6 +48,7 @@ describe('PrismaUsersRepository', () => {
       user: {
         create: jest.fn(),
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
@@ -295,6 +297,35 @@ describe('PrismaUsersRepository', () => {
       expect(userUpdateArgs.data.recoveryCodes).toBeNull();
       expect(userUpdateArgs.data.emailVerifiedAt).toBeNull();
       expect(userUpdateArgs.data.anonymizedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('token invalidation', () => {
+    it('findTokensInvalidatedAt returns the column value when present', async () => {
+      const at = new Date('2026-05-21T10:00:00Z');
+      prisma.user.findUnique.mockResolvedValue({ tokensInvalidatedAt: at });
+      const result = await repo.findTokensInvalidatedAt('u1');
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'u1' },
+        select: { tokensInvalidatedAt: true },
+      });
+      expect(result).toEqual(at);
+    });
+
+    it('findTokensInvalidatedAt returns null when row is missing', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      expect(await repo.findTokensInvalidatedAt('missing')).toBeNull();
+    });
+
+    it('invalidateTokens stamps the user with a fresh date', async () => {
+      prisma.user.update.mockResolvedValue(baseUser);
+      await repo.invalidateTokens('u1');
+      const args = prisma.user.update.mock.calls[0][0] as {
+        where: { id: string };
+        data: { tokensInvalidatedAt: Date };
+      };
+      expect(args.where).toEqual({ id: 'u1' });
+      expect(args.data.tokensInvalidatedAt).toBeInstanceOf(Date);
     });
   });
 
