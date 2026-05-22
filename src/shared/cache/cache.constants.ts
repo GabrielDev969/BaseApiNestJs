@@ -4,6 +4,7 @@ export const CACHE_NS = {
   users: 'users',
   workspaceMembers: 'workspace_members',
   sessions: 'sessions',
+  featureFlags: 'feature_flags',
 } as const;
 
 const seconds = (n: number) => n * 1_000;

@@ -105,11 +105,12 @@ model Workspace {
   ownerId    String
   owner      User    @relation("WorkspaceOwner", fields: [ownerId], references: [id])
 
-  members     WorkspaceMember[]
-  roles       Role[]
-  invitations Invitation[]
-  auditLogs   AuditLog[]
-  permissions Permission[]
+  members      WorkspaceMember[]
+  roles        Role[]
+  invitations  Invitation[]
+  auditLogs    AuditLog[]
+  permissions  Permission[]
+  featureFlags WorkspaceFeatureFlag[]
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())
@@ -194,6 +195,21 @@ model RolePermission {
   permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
+}
+
+model WorkspaceFeatureFlag {
+  id          String  @id @default(uuid())
+  workspaceId String
+  key         String
+  enabled     Boolean
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([workspaceId, key])
+  @@index([key])
 }
 
 model Session {
