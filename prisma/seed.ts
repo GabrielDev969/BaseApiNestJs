@@ -137,14 +137,25 @@ async function seedSuperAdmin(allPermissionKeys: string[]): Promise<void> {
     },
   });
 
+  const organization = await prisma.organization.upsert({
+    where: { slug: `org-${ADMIN_WORKSPACE_SLUG}` },
+    update: { ownerId: user.id },
+    create: {
+      name: ADMIN_WORKSPACE_NAME,
+      slug: `org-${ADMIN_WORKSPACE_SLUG}`,
+      ownerId: user.id,
+    },
+  });
+
   const workspace = await prisma.workspace.upsert({
     where: { slug: ADMIN_WORKSPACE_SLUG },
-    update: {},
+    update: { organizationId: organization.id },
     create: {
       name: ADMIN_WORKSPACE_NAME,
       slug: ADMIN_WORKSPACE_SLUG,
       isPersonal: false,
       ownerId: user.id,
+      organizationId: organization.id,
     },
   });
 

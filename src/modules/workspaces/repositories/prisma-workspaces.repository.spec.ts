@@ -14,12 +14,14 @@ type WorkspaceMemberClient = {
   create: jest.Mock;
   findMany: jest.Mock;
 };
+type OrganizationClient = { create: jest.Mock };
 
 type Tx = {
   workspace: WorkspaceClient;
   role: RoleClient;
   permission: PermissionClient;
   workspaceMember: WorkspaceMemberClient;
+  organization: OrganizationClient;
 };
 
 type PrismaMock = {
@@ -34,6 +36,7 @@ const baseWorkspace = {
   slug: 'my-workspace',
   isPersonal: false,
   ownerId: 'u1',
+  organizationId: 'org1',
   deletedAt: null,
   createdAt: new Date('2026-01-01'),
   updatedAt: new Date('2026-01-02'),
@@ -54,6 +57,7 @@ describe('PrismaWorkspacesRepository', () => {
       role: { create: jest.fn() },
       permission: { findMany: jest.fn() },
       workspaceMember: { create: jest.fn(), findMany: jest.fn() },
+      organization: { create: jest.fn().mockResolvedValue({ id: 'org1' }) },
     };
     prisma = {
       workspace: {
@@ -112,12 +116,20 @@ describe('PrismaWorkspacesRepository', () => {
         ],
       });
 
+      expect(tx.organization.create).toHaveBeenCalledWith({
+        data: {
+          name: 'My Workspace',
+          slug: 'org-my-workspace',
+          ownerId: 'u1',
+        },
+      });
       expect(tx.workspace.create).toHaveBeenCalledWith({
         data: {
           name: 'My Workspace',
           slug: 'my-workspace',
           isPersonal: false,
           ownerId: 'u1',
+          organizationId: 'org1',
         },
       });
       // permissions queried only for the unique union of keys

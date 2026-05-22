@@ -1,10 +1,8 @@
-export class Workspace {
+export class Organization {
   id: string;
   name: string;
   slug: string;
-  isPersonal: boolean;
   ownerId: string;
-  organizationId: string;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;

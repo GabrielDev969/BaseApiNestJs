@@ -25,12 +25,20 @@ export class PrismaWorkspacesRepository extends WorkspacesRepository {
     data: CreateWorkspaceWithDefaultsData,
   ): Promise<CreateWorkspaceResult> {
     return this.prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: {
+          name: data.name,
+          slug: `org-${data.slug}`,
+          ownerId: data.ownerId,
+        },
+      });
       const workspace = await tx.workspace.create({
         data: {
           name: data.name,
           slug: data.slug,
           isPersonal: data.isPersonal,
           ownerId: data.ownerId,
+          organizationId: organization.id,
         },
       });
 
@@ -161,6 +169,7 @@ export class PrismaWorkspacesRepository extends WorkspacesRepository {
       slug: raw.slug,
       isPersonal: raw.isPersonal,
       ownerId: raw.ownerId,
+      organizationId: raw.organizationId,
       deletedAt: raw.deletedAt,
       createdAt: raw.createdAt,
       updatedAt: raw.updatedAt,

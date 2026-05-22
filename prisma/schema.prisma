@@ -22,6 +22,7 @@ model User {
   tokensInvalidatedAt  DateTime?
 
   oauthAccounts        OAuthAccount[]
+  ownedOrganizations   Organization[]         @relation("OrganizationOwner")
   ownedWorkspaces      Workspace[]            @relation("WorkspaceOwner")
   memberships          WorkspaceMember[]
   sessions             Session[]
@@ -97,13 +98,33 @@ model OAuthAccount {
   @@index([userId])
 }
 
+model Organization {
+  id      String @id @default(uuid())
+  name    String
+  slug    String @unique
+  ownerId String
+  owner   User   @relation("OrganizationOwner", fields: [ownerId], references: [id])
+
+  workspaces Workspace[]
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@index([deletedAt])
+}
+
 model Workspace {
-  id         String  @id @default(uuid())
-  name       String
-  slug       String  @unique
-  isPersonal Boolean @default(false)
-  ownerId    String
-  owner      User    @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  id             String @id @default(uuid())
+  name           String
+  slug           String @unique
+  isPersonal     Boolean @default(false)
+  ownerId        String
+  organizationId String
+
+  owner        User         @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
   members      WorkspaceMember[]
   roles        Role[]
@@ -117,6 +138,7 @@ model Workspace {
   updatedAt DateTime  @updatedAt
 
   @@index([ownerId])
+  @@index([organizationId])
   @@index([deletedAt])
 }
 
