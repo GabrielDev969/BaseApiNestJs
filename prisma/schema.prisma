@@ -29,6 +29,7 @@ model User {
   invitationsSent      Invitation[]           @relation("InvitedBy")
   emailVerifyTokens    EmailVerifyToken[]
   passwordResetTokens  PasswordResetToken[]
+  passwordHistory      PasswordHistory[]
 
   deletedAt     DateTime?
   anonymizedAt  DateTime?
@@ -69,6 +70,18 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model PasswordHistory {
+  id           String @id @default(uuid())
+  userId       String
+  passwordHash String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model OAuthAccount {

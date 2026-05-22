@@ -189,6 +189,8 @@ const envSchema = z
     LOG_SLOW_REQUEST_MS: z.coerce.number().int().positive().default(1000),
     LOG_SLOW_QUERY_MS: z.coerce.number().int().positive().default(100),
 
+    PASSWORD_HISTORY_SIZE: z.coerce.number().int().min(0).max(50).default(5),
+
     SESSION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
     AUDIT_RETENTION_DAYS: z.coerce.number().int().positive().default(365),
     EPHEMERAL_TOKEN_RETENTION_DAYS: z.coerce

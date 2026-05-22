@@ -25,6 +25,8 @@ import { EmailVerifyTokensRepository } from './repositories/email-verify-tokens.
 import { PrismaEmailVerifyTokensRepository } from './repositories/prisma-email-verify-tokens.repository';
 import { PasswordResetTokensRepository } from './repositories/password-reset-tokens.repository.interface';
 import { PrismaPasswordResetTokensRepository } from './repositories/prisma-password-reset-tokens.repository';
+import { PasswordHistoriesRepository } from './repositories/password-histories.repository.interface';
+import { PrismaPasswordHistoriesRepository } from './repositories/prisma-password-histories.repository';
 import { WorkspacesModule } from '@modules/workspaces/workspaces.module';
 import { AuditModule } from '@modules/audit/audit.module';
 
@@ -63,6 +65,10 @@ import { AuditModule } from '@modules/audit/audit.module';
     {
       provide: PasswordResetTokensRepository,
       useClass: PrismaPasswordResetTokensRepository,
+    },
+    {
+      provide: PasswordHistoriesRepository,
+      useClass: PrismaPasswordHistoriesRepository,
     },
   ],
   exports: [LoginUseCase, TokenService, CleanupExpiredTokensUseCase],
