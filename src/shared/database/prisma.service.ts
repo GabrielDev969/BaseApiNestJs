@@ -54,13 +54,16 @@ export class PrismaService
       this.metrics.observeQuery(operation, event.duration / 1000);
 
       if (event.duration >= env.LOG_SLOW_QUERY_MS) {
-        this.logger.warn({
+        const payload: Record<string, unknown> = {
           msg: 'Slow query',
           durationMs: event.duration,
           thresholdMs: env.LOG_SLOW_QUERY_MS,
           query: event.query,
-          params: event.params,
-        });
+        };
+        if (env.NODE_ENV !== 'production') {
+          payload.params = event.params;
+        }
+        this.logger.warn(payload);
       }
     });
     this.$on('warn', (event: Prisma.LogEvent) => this.logger.warn(event));

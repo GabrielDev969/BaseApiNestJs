@@ -102,11 +102,11 @@ describe('PrismaService', () => {
     expect(metrics.observeQuery).toHaveBeenCalledWith('OTHER', 0.001);
   });
 
-  it('logs a warn when the query duration meets or exceeds the slow threshold', () => {
+  it('logs a warn when the query duration meets or exceeds the slow threshold, including params outside production', () => {
     listeners['query']({
-      query: 'SELECT * FROM big_table',
+      query: 'SELECT * FROM "User" WHERE email = $1',
       duration: env.LOG_SLOW_QUERY_MS,
-      params: '[]',
+      params: '["jane@example.com"]',
     });
 
     expect(warnSpy).toHaveBeenCalledWith(
@@ -114,9 +114,29 @@ describe('PrismaService', () => {
         msg: 'Slow query',
         durationMs: env.LOG_SLOW_QUERY_MS,
         thresholdMs: env.LOG_SLOW_QUERY_MS,
-        query: 'SELECT * FROM big_table',
+        query: 'SELECT * FROM "User" WHERE email = $1',
+        params: '["jane@example.com"]',
       }),
     );
+  });
+
+  it('omits params from the slow-query log when NODE_ENV is production', () => {
+    const original = env.NODE_ENV;
+    (env as { NODE_ENV: string }).NODE_ENV = 'production';
+    try {
+      listeners['query']({
+        query: 'SELECT * FROM "User" WHERE email = $1',
+        duration: env.LOG_SLOW_QUERY_MS,
+        params: '["jane@example.com"]',
+      });
+
+      const callArg = warnSpy.mock.calls[0][0] as Record<string, unknown>;
+      expect(callArg).not.toHaveProperty('params');
+      expect(callArg.msg).toBe('Slow query');
+      expect(callArg.query).toBe('SELECT * FROM "User" WHERE email = $1');
+    } finally {
+      (env as { NODE_ENV: string }).NODE_ENV = original;
+    }
   });
 
   it('does not log a slow-query warn when the query is below the threshold', () => {
