@@ -9,7 +9,7 @@ export function setRefreshCookie(res: Response, token: string): void {
   res.cookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: REFRESH_COOKIE_PATH,
     maxAge: MAX_AGE_MS,
   });

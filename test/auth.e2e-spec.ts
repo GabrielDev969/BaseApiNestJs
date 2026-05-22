@@ -82,7 +82,7 @@ describe('Auth flow (e2e)', () => {
     const refreshCookie = setCookie.find((c) => c.startsWith('refresh_token='));
     expect(refreshCookie).toBeDefined();
     expect(refreshCookie).toContain('HttpOnly');
-    expect(refreshCookie).toContain('SameSite=Strict');
+    expect(refreshCookie).toContain('SameSite=Lax');
     expect(refreshCookie).toContain('Path=/api/v1/auth/refresh');
   });
 

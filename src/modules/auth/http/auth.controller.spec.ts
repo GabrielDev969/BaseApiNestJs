@@ -130,7 +130,7 @@ describe('AuthController', () => {
     expect(res.cookie).toHaveBeenCalledWith(
       'refresh_token',
       'r',
-      expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
+      expect.objectContaining({ httpOnly: true, sameSite: 'lax' }),
     );
     expect(result).toEqual({ accessToken: 'a' });
   });
