@@ -221,10 +221,11 @@ const envSchema = z
   )
   .refine(
     (data) =>
-      data.NODE_ENV !== 'production' ||
+      data.NODE_ENV === 'development' ||
       (data.CORS_ORIGINS !== undefined && data.CORS_ORIGINS.length > 0),
     {
-      message: 'CORS_ORIGINS must be set (non-empty) when NODE_ENV=production',
+      message:
+        'CORS_ORIGINS must be set (non-empty) when NODE_ENV is not development',
     },
   )
   .refine(

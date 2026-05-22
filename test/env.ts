@@ -18,6 +18,7 @@ const previous = genRsaPairBase64();
 process.env.NODE_ENV = 'test';
 process.env.PORT = '3000';
 process.env.APP_URL = 'http://localhost:3000';
+process.env.CORS_ORIGINS = 'http://localhost:3000';
 process.env.JWT_ACCESS_CURRENT_KID = 'e2e-current';
 process.env.JWT_ACCESS_PRIVATE_KEY_CURRENT = current.privateKey;
 process.env.JWT_ACCESS_PUBLIC_KEYS = JSON.stringify({

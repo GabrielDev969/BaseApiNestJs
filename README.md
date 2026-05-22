@@ -72,7 +72,7 @@ All variables are validated by Zod at boot (`src/config/env.config.ts`). The app
 | `APP_PUBLIC_URL` | optional | Public URL used in email links. Falls back to `APP_URL`. |
 | `ALERT_DISCORD_WEBHOOK_URL` | optional | Discord webhook the Alertmanager service routes to. Required if you run the `alertmanager` container. |
 | `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` / `SUPER_ADMIN_NAME` | yes (seed) | provisioned by `prisma db seed` |
-| `CORS_ORIGINS` | optional | comma-separated; defaults to `*` |
+| `CORS_ORIGINS` | required outside `development` | comma-separated allowed origins. In `development` defaults to `http://localhost:3000,http://127.0.0.1:3000`. Never wildcards credentials. |
 
 ## Scripts
 
