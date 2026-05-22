@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { nanoid } from 'nanoid';
 import { env } from 'src/config/env.config';
 import { JwtKeyResolverService } from './jwt-key-resolver.service';
 
@@ -7,6 +8,9 @@ export interface AccessTokenPayload {
   id: string;
   sessionId: string;
 }
+
+export const JWT_ISSUER = env.JWT_ISSUER ?? env.APP_URL;
+export const JWT_AUDIENCE = env.JWT_AUDIENCE ?? env.APP_URL;
 
 @Injectable()
 export class TokenService {
@@ -26,6 +30,9 @@ export class TokenService {
         keyid: this.resolver.currentKid,
         expiresIn: env.JWT_ACCESS_EXPIRES_IN,
         algorithm: 'RS256',
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        jwtid: nanoid(),
       },
     );
   }
@@ -38,6 +45,9 @@ export class TokenService {
         keyid: this.resolver.currentKid,
         expiresIn: '5m',
         algorithm: 'RS256',
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        jwtid: nanoid(),
       },
     );
   }
@@ -51,6 +61,8 @@ export class TokenService {
       {
         publicKey,
         algorithms: ['RS256'],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
       },
     );
     if (payload.type !== '2fa-challenge') {

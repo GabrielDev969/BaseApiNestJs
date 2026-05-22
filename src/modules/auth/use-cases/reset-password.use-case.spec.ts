@@ -2,17 +2,25 @@ import { BadRequestException } from '@nestjs/common';
 import { ResetPasswordUseCase } from './reset-password.use-case';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
 import { PasswordResetTokensRepository } from '../repositories/password-reset-tokens.repository.interface';
+import { PasswordHistoriesRepository } from '../repositories/password-histories.repository.interface';
 import { SessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
 import { CryptoUtil } from '@shared/utils/crypto.util';
 
 describe('ResetPasswordUseCase', () => {
   let users: jest.Mocked<UsersRepository>;
   let tokens: jest.Mocked<PasswordResetTokensRepository>;
+  let history: jest.Mocked<PasswordHistoriesRepository>;
   let sessions: jest.Mocked<SessionsRepository>;
   let useCase: ResetPasswordUseCase;
 
   beforeEach(() => {
     users = {
+      findById: jest.fn().mockResolvedValue({
+        id: 'u1',
+        email: 'u1@example.com',
+        name: 'u1',
+        passwordHash: null,
+      }),
       update: jest.fn(),
       invalidateTokens: jest.fn(),
     } as unknown as jest.Mocked<UsersRepository>;
@@ -20,10 +28,14 @@ describe('ResetPasswordUseCase', () => {
       findByTokenHash: jest.fn(),
       markUsed: jest.fn(),
     } as unknown as jest.Mocked<PasswordResetTokensRepository>;
+    history = {
+      findRecentHashes: jest.fn().mockResolvedValue([]),
+      record: jest.fn(),
+    };
     sessions = {
       revokeAllForUser: jest.fn(),
     } as unknown as jest.Mocked<SessionsRepository>;
-    useCase = new ResetPasswordUseCase(users, tokens, sessions);
+    useCase = new ResetPasswordUseCase(users, tokens, history, sessions);
   });
 
   it('throws BadRequest when token is unknown', async () => {

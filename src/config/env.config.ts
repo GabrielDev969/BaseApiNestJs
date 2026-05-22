@@ -146,6 +146,8 @@ const envSchema = z
       .string()
       .default('15m')
       .transform((val) => val as `${number}${'s' | 'm' | 'h' | 'd'}`),
+    JWT_ISSUER: z.string().min(1).optional(),
+    JWT_AUDIENCE: z.string().min(1).optional(),
 
     ENCRYPTION_KEY: z
       .string()

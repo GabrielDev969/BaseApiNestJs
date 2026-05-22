@@ -3,7 +3,11 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { SessionsRepository } from '@modules/sessions/repositories/sessions.repository.interface';
 import { UsersRepository } from '@modules/users/repositories/users.repository.interface';
-import type { AccessTokenPayload } from '../services/token.service';
+import {
+  JWT_AUDIENCE,
+  JWT_ISSUER,
+  type AccessTokenPayload,
+} from '../services/token.service';
 import { JwtKeyResolverService } from '../services/jwt-key-resolver.service';
 
 @Injectable()
@@ -17,6 +21,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       algorithms: ['RS256'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
       secretOrKeyProvider: (
         _request: unknown,
         rawJwtToken: string,

@@ -1,5 +1,5 @@
 import { JwtService } from '@nestjs/jwt';
-import { TokenService } from './token.service';
+import { JWT_AUDIENCE, JWT_ISSUER, TokenService } from './token.service';
 import { JwtKeyResolverService } from './jwt-key-resolver.service';
 
 function decodeHeader(token: string): Record<string, unknown> {
@@ -49,6 +49,8 @@ describe('TokenService', () => {
         keyid: resolver.currentKid,
         expiresIn: '5m',
         algorithm: 'RS256',
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
       },
     );
 
@@ -65,6 +67,8 @@ describe('TokenService', () => {
         keyid: 'not-a-real-kid',
         expiresIn: '5m',
         algorithm: 'RS256',
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
       },
     );
 
