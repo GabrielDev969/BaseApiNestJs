@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import {
   startTestDatabase,
   stopTestDatabase,
@@ -13,6 +12,7 @@ import { PrismaUsersRepository } from '../src/modules/users/repositories/prisma-
 import { PrismaService } from '../src/shared/database/prisma.service';
 import { CacheService } from '../src/shared/cache/cache.service';
 import { PERMISSIONS } from '../src/modules/rbac/constants/permissions';
+import { UnknownPermissionsError } from '../src/modules/rbac/errors/unknown-permissions.error';
 
 describe('PrismaRolesRepository (integration)', () => {
   let roles: PrismaRolesRepository;
@@ -83,7 +83,7 @@ describe('PrismaRolesRepository (integration)', () => {
         workspaceId,
         permissionKeys: ['nonexistent:permission'],
       }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(UnknownPermissionsError);
   });
 
   it('replaces a role permission set atomically on update', async () => {

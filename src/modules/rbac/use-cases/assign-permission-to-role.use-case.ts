@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { RolesRepository } from '../repositories/roles.repository.interface';
 import { PermissionsRepository } from '../repositories/permissions.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 import { RoleResponseDto, toRoleDto } from '../http/dto/role-response.dto';
 
 interface AssignPermissionInput {
@@ -39,13 +41,19 @@ export class AssignPermissionToRoleUseCase {
       return toRoleDto(role);
     }
 
-    const updated = await this.roles.update(input.roleId, {
-      permissionKeys: [
-        ...role.permissions.map((p) => p.key),
-        input.permissionKey,
-      ],
-    });
-
-    return toRoleDto(updated);
+    try {
+      const updated = await this.roles.update(input.roleId, {
+        permissionKeys: [
+          ...role.permissions.map((p) => p.key),
+          input.permissionKey,
+        ],
+      });
+      return toRoleDto(updated);
+    } catch (err) {
+      if (err instanceof UnknownPermissionsError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
   }
 }

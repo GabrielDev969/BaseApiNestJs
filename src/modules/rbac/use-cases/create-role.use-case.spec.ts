@@ -1,6 +1,7 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { CreateRoleUseCase } from './create-role.use-case';
 import { RolesRepository } from '../repositories/roles.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 
 describe('CreateRoleUseCase', () => {
   let roles: jest.Mocked<RolesRepository>;
@@ -54,5 +55,18 @@ describe('CreateRoleUseCase', () => {
       isSystem: false,
     });
     expect(result.id).toBe('r1');
+  });
+
+  it('translates UnknownPermissionsError from the repository into BadRequestException', async () => {
+    roles.findByNameInWorkspace.mockResolvedValue(null);
+    roles.create.mockRejectedValue(new UnknownPermissionsError(['user:nuke']));
+
+    await expect(
+      useCase.execute({
+        workspaceId: 'w1',
+        name: 'Bad',
+        permissionKeys: ['user:nuke'],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

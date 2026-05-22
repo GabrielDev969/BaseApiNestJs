@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { RolesRepository } from './roles.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 import type {
   CreateRoleData,
   UpdateRoleData,
@@ -41,9 +42,7 @@ export class PrismaRolesRepository extends RolesRepository {
       const missing = data.permissionKeys.filter(
         (k) => !perms.some((p) => p.key === k),
       );
-      throw new BadRequestException(
-        `Unknown permissions: ${missing.join(', ')}`,
-      );
+      throw new UnknownPermissionsError(missing);
     }
 
     const role = await this.prisma.role.create({
@@ -133,9 +132,7 @@ export class PrismaRolesRepository extends RolesRepository {
           const missing = data.permissionKeys.filter(
             (k) => !perms.some((p) => p.key === k),
           );
-          throw new BadRequestException(
-            `Unknown permissions: ${missing.join(', ')}`,
-          );
+          throw new UnknownPermissionsError(missing);
         }
 
         await tx.rolePermission.deleteMany({ where: { roleId: id } });

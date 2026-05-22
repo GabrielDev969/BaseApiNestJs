@@ -1,8 +1,8 @@
-import { BadRequestException } from '@nestjs/common';
 import { createCache } from 'cache-manager';
 import { PrismaService } from '@shared/database/prisma.service';
 import { CacheService } from '@shared/cache/cache.service';
 import { PrismaRolesRepository } from './prisma-roles.repository';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 
 type PermissionClient = { findMany: jest.Mock };
 type RoleClient = {
@@ -150,20 +150,20 @@ describe('PrismaRolesRepository', () => {
       );
     });
 
-    it('throws BadRequestException listing missing permission keys', async () => {
+    it('throws UnknownPermissionsError listing missing permission keys', async () => {
       prisma.permission.findMany.mockResolvedValue([
         { id: 'p1', key: 'user:read' },
       ]);
 
-      await expect(
-        repo.create({
-          name: 'Admin',
-          workspaceId: 'w1',
-          permissionKeys: ['user:read', 'user:nuke', 'user:beam'],
-        }),
-      ).rejects.toThrow(
-        new BadRequestException('Unknown permissions: user:nuke, user:beam'),
-      );
+      const promise = repo.create({
+        name: 'Admin',
+        workspaceId: 'w1',
+        permissionKeys: ['user:read', 'user:nuke', 'user:beam'],
+      });
+      await expect(promise).rejects.toBeInstanceOf(UnknownPermissionsError);
+      await expect(promise).rejects.toMatchObject({
+        missing: ['user:nuke', 'user:beam'],
+      });
       expect(prisma.role.create).not.toHaveBeenCalled();
     });
   });
@@ -289,16 +289,16 @@ describe('PrismaRolesRepository', () => {
       expect(result.id).toBe('r1');
     });
 
-    it('throws BadRequestException when permission keys are unknown', async () => {
+    it('throws UnknownPermissionsError when permission keys are unknown', async () => {
       tx.permission.findMany.mockResolvedValue([
         { id: 'p1', key: 'user:read' },
       ]);
 
-      await expect(
-        repo.update('r1', { permissionKeys: ['user:read', 'user:beam'] }),
-      ).rejects.toThrow(
-        new BadRequestException('Unknown permissions: user:beam'),
-      );
+      const promise = repo.update('r1', {
+        permissionKeys: ['user:read', 'user:beam'],
+      });
+      await expect(promise).rejects.toBeInstanceOf(UnknownPermissionsError);
+      await expect(promise).rejects.toMatchObject({ missing: ['user:beam'] });
       expect(tx.rolePermission.deleteMany).not.toHaveBeenCalled();
     });
   });

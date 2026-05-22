@@ -1,5 +1,10 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { RolesRepository } from '../repositories/roles.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 import { RoleResponseDto, toRoleDto } from '../http/dto/role-response.dto';
 
 interface CreateRoleInput {
@@ -21,14 +26,20 @@ export class CreateRoleUseCase {
     if (existing)
       throw new ConflictException(`Role "${input.name}" already exists`);
 
-    const role = await this.roles.create({
-      workspaceId: input.workspaceId,
-      name: input.name,
-      description: input.description,
-      permissionKeys: input.permissionKeys,
-      isSystem: false,
-    });
-
-    return toRoleDto(role);
+    try {
+      const role = await this.roles.create({
+        workspaceId: input.workspaceId,
+        name: input.name,
+        description: input.description,
+        permissionKeys: input.permissionKeys,
+        isSystem: false,
+      });
+      return toRoleDto(role);
+    } catch (err) {
+      if (err instanceof UnknownPermissionsError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
   }
 }

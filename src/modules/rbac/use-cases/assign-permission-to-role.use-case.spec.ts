@@ -1,7 +1,12 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AssignPermissionToRoleUseCase } from './assign-permission-to-role.use-case';
 import { RolesRepository } from '../repositories/roles.repository.interface';
 import { PermissionsRepository } from '../repositories/permissions.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 import { Permission } from '../entities/permission.entity';
 
 describe('AssignPermissionToRoleUseCase', () => {
@@ -122,5 +127,24 @@ describe('AssignPermissionToRoleUseCase', () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(permissions.findByKey).not.toHaveBeenCalled();
+  });
+
+  it('translates UnknownPermissionsError into BadRequestException when the role had a stale permission key', async () => {
+    roles.findByIdInWorkspace.mockResolvedValue(baseRole([userRead]));
+    permissions.findByKey.mockResolvedValue({
+      id: 'p2',
+      key: 'user:create',
+      description: null,
+      category: 'user',
+    });
+    roles.update.mockRejectedValue(new UnknownPermissionsError(['user:read']));
+
+    await expect(
+      useCase.execute({
+        roleId: 'r1',
+        workspaceId: 'w1',
+        permissionKey: 'user:create',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { UpdateRoleUseCase } from './update-role.use-case';
 import { RolesRepository } from '../repositories/roles.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 import { Permission } from '../entities/permission.entity';
 import { Role } from '../entities/role.entity';
 
@@ -98,5 +100,18 @@ describe('UpdateRoleUseCase', () => {
       useCase.execute({ id: 'r1', workspaceId: 'w1', name: 'Member' }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(roles.update).not.toHaveBeenCalled();
+  });
+
+  it('translates UnknownPermissionsError into BadRequestException', async () => {
+    roles.findByIdInWorkspace.mockResolvedValue(baseRole());
+    roles.update.mockRejectedValue(new UnknownPermissionsError(['user:beam']));
+
+    await expect(
+      useCase.execute({
+        id: 'r1',
+        workspaceId: 'w1',
+        permissionKeys: ['user:beam'],
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

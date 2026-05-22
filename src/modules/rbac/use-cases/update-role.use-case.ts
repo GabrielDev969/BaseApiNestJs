@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
-  ForbiddenException,
-  ConflictException,
 } from '@nestjs/common';
 import { RolesRepository } from '../repositories/roles.repository.interface';
+import { UnknownPermissionsError } from '../errors/unknown-permissions.error';
 import { RoleResponseDto, toRoleDto } from '../http/dto/role-response.dto';
 
 interface UpdateRoleInput {
@@ -37,12 +39,18 @@ export class UpdateRoleUseCase {
         throw new ConflictException(`Role "${input.name}" already exists`);
     }
 
-    const updated = await this.roles.update(input.id, {
-      name: input.name,
-      description: input.description,
-      permissionKeys: input.permissionKeys,
-    });
-
-    return toRoleDto(updated);
+    try {
+      const updated = await this.roles.update(input.id, {
+        name: input.name,
+        description: input.description,
+        permissionKeys: input.permissionKeys,
+      });
+      return toRoleDto(updated);
+    } catch (err) {
+      if (err instanceof UnknownPermissionsError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
   }
 }
