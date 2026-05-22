@@ -17,6 +17,8 @@ import { QueuesModule } from '@shared/queues/queues.module';
 import { MailerModule } from '@shared/mailer/mailer.module';
 import { AuditInterceptor } from '@shared/interceptors/audit.interceptor';
 import { PerformanceInterceptor } from '@shared/interceptors/performance.interceptor';
+import { IdempotencyModule } from '@shared/idempotency/idempotency.module';
+import { IdempotencyInterceptor } from '@shared/idempotency/idempotency.interceptor';
 import { AllExceptionsFilter } from '@shared/filters/all-exceptions.filter';
 import { AuditModule } from '@modules/audit/audit.module';
 import { AuthModule } from '@modules/auth/auth.module';
@@ -62,6 +64,7 @@ import { MaintenanceModule } from '@shared/maintenance/maintenance.module';
     }),
     PrismaModule,
     AppCacheModule,
+    IdempotencyModule,
     MetricsModule,
     QueuesModule,
     MailerModule,
@@ -85,6 +88,7 @@ import { MaintenanceModule } from '@shared/maintenance/maintenance.module';
     { provide: APP_GUARD, useClass: CustomThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: PerformanceInterceptor },
     { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })

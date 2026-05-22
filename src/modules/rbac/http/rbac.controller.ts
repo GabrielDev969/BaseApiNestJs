@@ -24,6 +24,7 @@ import {
 import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator';
 import { RequirePermissions } from '@shared/decorators/require-permissions.decorator';
 import { Audit } from '@shared/decorators/audit.decorator';
+import { Idempotent } from '@shared/idempotency/idempotent.decorator';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
 import {
@@ -77,6 +78,7 @@ export class RbacController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @RequirePermissions(PERMISSIONS.ROLE.CREATE)
+  @Idempotent()
   @Audit({ action: 'role.created', resource: 'Role' })
   @ApiOperation({ summary: 'Create a role in the workspace' })
   @ApiBody({ type: CreateRoleDto })
@@ -141,6 +143,7 @@ export class RbacController {
   @Post(':id/permissions')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions(PERMISSIONS.ROLE.UPDATE)
+  @Idempotent()
   @Audit({ action: 'role.permission_assigned', resource: 'Role' })
   @ApiOperation({ summary: 'Assign a permission to a role' })
   @ApiParam({ name: 'id', type: 'string', format: 'uuid' })

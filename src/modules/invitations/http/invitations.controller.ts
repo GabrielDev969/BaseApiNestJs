@@ -24,6 +24,7 @@ import { CurrentUser } from '@shared/decorators/current-user.decorator';
 import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator';
 import { RequirePermissions } from '@shared/decorators/require-permissions.decorator';
 import { Audit } from '@shared/decorators/audit.decorator';
+import { Idempotent } from '@shared/idempotency/idempotent.decorator';
 import { RateLimit } from '@shared/decorators/rate-limits';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
@@ -75,6 +76,7 @@ export class InvitationsController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(WorkspaceGuard, PermissionsGuard)
   @RequirePermissions(PERMISSIONS.WORKSPACE.INVITE)
+  @Idempotent()
   @Audit({ action: 'invitation.sent', resource: 'Invitation' })
   @ApiHeader({ name: 'x-workspace-id', required: true })
   @ApiOperation({ summary: 'Send an invitation to join the workspace' })
@@ -131,6 +133,7 @@ export class InvitationsController {
   @Post('accept')
   @RateLimit('invitationAccept')
   @HttpCode(HttpStatus.OK)
+  @Idempotent()
   @Audit({ action: 'invitation.accepted', resource: 'Invitation' })
   @ApiOperation({
     summary:

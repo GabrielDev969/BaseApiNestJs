@@ -24,6 +24,7 @@ import { CurrentWorkspace } from '@shared/decorators/current-workspace.decorator
 import { CurrentPermissions } from '@shared/decorators/current-permissions.decorator';
 import { RequirePermissions } from '@shared/decorators/require-permissions.decorator';
 import { Audit } from '@shared/decorators/audit.decorator';
+import { Idempotent } from '@shared/idempotency/idempotent.decorator';
 import { PermissionsGuard } from '@shared/guards/permissions.guard';
 import { WorkspaceGuard } from '@shared/guards/workspace.guard';
 import {
@@ -198,6 +199,7 @@ export class WorkspacesController {
   @UseGuards(WorkspaceGuard, PermissionsGuard)
   @RequirePermissions(PERMISSIONS.WORKSPACE.TRANSFER_OWNERSHIP)
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Idempotent()
   @Audit({ action: 'workspace.ownership_transferred', resource: 'Workspace' })
   @ApiOperation({
     summary:

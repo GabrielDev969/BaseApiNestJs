@@ -48,6 +48,7 @@ import { DeleteUserUseCase } from '../use-cases/delete-user.use-case';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { Audit } from '@shared/decorators/audit.decorator';
+import { Idempotent } from '@shared/idempotency/idempotent.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -112,6 +113,7 @@ export class UsersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @RequirePermissions(PERMISSIONS.USER.CREATE)
+  @Idempotent()
   @Audit({ action: 'user.created', resource: 'User' })
   @ApiOperation({ summary: 'Create a user in the workspace' })
   @ApiBody({ type: CreateUserDto })
