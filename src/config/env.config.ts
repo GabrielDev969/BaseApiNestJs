@@ -56,8 +56,8 @@ const envSchema = z
 
     DATABASE_URL: z.string().url(),
     DB_POOL_MAX: z.coerce.number().int().positive().default(10),
-    DB_POOL_IDLE_MS: z.coerce.number().int().nonnegative().default(30_000),
-    DB_POOL_CONN_TIMEOUT_MS: z.coerce.number().int().positive().default(50_000),
+    DB_POOL_IDLE_MS: z.coerce.number().int().nonnegative().default(600_000),
+    DB_POOL_CONN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
 
     REDIS_HOST: z.string(),
     REDIS_PORT: z.coerce.number().default(6379),
