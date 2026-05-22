@@ -83,9 +83,15 @@ export function verifyToken(
   time = Date.now(),
 ): boolean {
   if (!/^\d{6}$/.test(token)) return false;
+  const tokenBuf = Buffer.from(token, 'utf8');
   const counter = BigInt(Math.floor(time / 1000 / STEP_SECONDS));
+  let matched = 0;
   for (let i = -WINDOW; i <= WINDOW; i++) {
-    if (generateCode(secret, counter + BigInt(i)) === token) return true;
+    const candidate = Buffer.from(
+      generateCode(secret, counter + BigInt(i)),
+      'utf8',
+    );
+    if (crypto.timingSafeEqual(candidate, tokenBuf)) matched = 1;
   }
-  return false;
+  return matched === 1;
 }
