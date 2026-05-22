@@ -22,6 +22,8 @@ describe('PrismaPermissionsRepository', () => {
     category: 'user',
   };
 
+  let cacheService: CacheService;
+
   beforeEach(() => {
     prisma = {
       permission: {
@@ -29,20 +31,15 @@ describe('PrismaPermissionsRepository', () => {
         findUnique: jest.fn(),
       },
     };
-    repo = new PrismaPermissionsRepository(prisma as unknown as PrismaService);
-  });
-
-  afterEach(() => {
-    (CacheService as unknown as { _instance: CacheService | null })._instance =
-      null;
+    cacheService = new CacheService(createCache());
+    repo = new PrismaPermissionsRepository(
+      prisma as unknown as PrismaService,
+      cacheService,
+    );
   });
 
   describe('with cache enabled — exercises @Cacheable key arrows', () => {
     it('findAll runs through the cache wrapper on first call and serves from cache on second', async () => {
-      const cache = createCache();
-      const svc = new CacheService(cache);
-      svc.onModuleInit();
-
       prisma.permission.findMany.mockResolvedValue([baseRow]);
       await repo.findAll();
       await repo.findAll();

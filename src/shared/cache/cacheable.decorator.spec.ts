@@ -1,10 +1,31 @@
 import { createCache } from 'cache-manager';
-import type { Cache } from '@nestjs/cache-manager';
 import { CacheService } from './cache.service';
 import { Cacheable } from './cacheable.decorator';
 import { InvalidateCache } from './invalidate-cache.decorator';
 
 class TestRepo {
+  callCount = 0;
+
+  constructor(protected readonly cacheService: CacheService) {}
+
+  @Cacheable({
+    namespace: 'test',
+    key: (id: string) => `id:${id}`,
+    ttlMs: 60_000,
+  })
+  async findById(id: string): Promise<{ id: string; n: number }> {
+    await Promise.resolve();
+    this.callCount++;
+    return { id, n: this.callCount };
+  }
+
+  @InvalidateCache('test')
+  async update(): Promise<void> {
+    await Promise.resolve();
+  }
+}
+
+class UninjectedRepo {
   callCount = 0;
 
   @Cacheable({
@@ -31,13 +52,7 @@ describe('Cacheable + InvalidateCache decorators', () => {
   beforeEach(() => {
     const cache = createCache();
     svc = new CacheService(cache);
-    svc.onModuleInit();
-    repo = new TestRepo();
-  });
-
-  afterEach(() => {
-    (CacheService as unknown as { _instance: CacheService | null })._instance =
-      null;
+    repo = new TestRepo(svc);
   });
 
   it('cache miss invokes the underlying method', async () => {
@@ -67,12 +82,17 @@ describe('Cacheable + InvalidateCache decorators', () => {
     expect(repo.callCount).toBe(2);
   });
 
-  it('decorator is a no-op when CacheService is not initialized', async () => {
-    (CacheService as unknown as { _instance: CacheService | null })._instance =
-      null;
-    const result = await repo.findById('a');
-    const result2 = await repo.findById('a');
-    expect(result.n).toBe(1);
-    expect(result2.n).toBe(2);
+  it('@Cacheable throws a clear error when the host class does not inject CacheService', async () => {
+    const uninjected = new UninjectedRepo();
+    await expect(uninjected.findById('a')).rejects.toThrow(
+      /requires the host class to inject CacheService/,
+    );
+  });
+
+  it('@InvalidateCache throws a clear error when the host class does not inject CacheService', async () => {
+    const uninjected = new UninjectedRepo();
+    await expect(uninjected.update()).rejects.toThrow(
+      /requires the host class to inject CacheService/,
+    );
   });
 });

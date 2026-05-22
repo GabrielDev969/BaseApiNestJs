@@ -4,15 +4,20 @@ import {
   resetDatabase,
   getPrisma,
 } from './helpers/test-database';
+import { createCache } from 'cache-manager';
 import { PrismaUsersRepository } from '../src/modules/users/repositories/prisma-users.repository';
 import { PrismaService } from '../src/shared/database/prisma.service';
+import { CacheService } from '../src/shared/cache/cache.service';
 
 describe('PrismaUsersRepository (integration)', () => {
   let repo: PrismaUsersRepository;
 
   beforeAll(async () => {
     await startTestDatabase();
-    repo = new PrismaUsersRepository(getPrisma() as unknown as PrismaService);
+    repo = new PrismaUsersRepository(
+      getPrisma() as unknown as PrismaService,
+      new CacheService(createCache()),
+    );
   });
 
   afterAll(async () => {

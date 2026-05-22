@@ -46,19 +46,12 @@ describe('PrismaWorkspaceMembersRepository', () => {
     };
     repo = new PrismaWorkspaceMembersRepository(
       prisma as unknown as PrismaService,
+      new CacheService(createCache()),
     );
-  });
-
-  afterEach(() => {
-    (CacheService as unknown as { _instance: CacheService | null })._instance =
-      null;
   });
 
   describe('with cache enabled — exercises @Cacheable key arrows', () => {
     it('cached lookups serve from cache on repeat call', async () => {
-      const cache = createCache();
-      new CacheService(cache).onModuleInit();
-
       prisma.workspaceMember.findUnique.mockResolvedValue({
         ...baseMember,
         role: { id: 'r1', name: 'Owner', isSystem: true, permissions: [] },

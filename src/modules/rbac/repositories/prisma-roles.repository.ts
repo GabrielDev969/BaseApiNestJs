@@ -16,6 +16,7 @@ import {
 import { Cacheable } from '@shared/cache/cacheable.decorator';
 import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
 import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
+import { CacheService } from '@shared/cache/cache.service';
 
 type PrismaRoleWithRelations = Prisma.RoleGetPayload<{
   include: { permissions: { include: { permission: true } } };
@@ -23,7 +24,10 @@ type PrismaRoleWithRelations = Prisma.RoleGetPayload<{
 
 @Injectable()
 export class PrismaRolesRepository extends RolesRepository {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    protected readonly cacheService: CacheService,
+  ) {
     super();
   }
 

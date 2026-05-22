@@ -1,4 +1,6 @@
+import { createCache } from 'cache-manager';
 import { PrismaService } from '@shared/database/prisma.service';
+import { CacheService } from '@shared/cache/cache.service';
 import { PrismaSessionsRepository } from './prisma-sessions.repository';
 
 type SessionClient = {
@@ -39,7 +41,10 @@ describe('PrismaSessionsRepository', () => {
         deleteMany: jest.fn(),
       },
     };
-    repo = new PrismaSessionsRepository(prisma as unknown as PrismaService);
+    repo = new PrismaSessionsRepository(
+      prisma as unknown as PrismaService,
+      new CacheService(createCache()),
+    );
   });
 
   describe('create', () => {

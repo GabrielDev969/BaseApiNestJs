@@ -12,10 +12,14 @@ import { User as PrismaUser } from '@prisma/client';
 import { Cacheable } from '@shared/cache/cacheable.decorator';
 import { InvalidateCache } from '@shared/cache/invalidate-cache.decorator';
 import { CACHE_NS, CACHE_TTL } from '@shared/cache/cache.constants';
+import { CacheService } from '@shared/cache/cache.service';
 
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    protected readonly cacheService: CacheService,
+  ) {
     super();
   }
 

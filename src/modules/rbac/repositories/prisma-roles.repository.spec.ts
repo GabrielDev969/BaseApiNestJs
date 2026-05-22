@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { createCache } from 'cache-manager';
 import { PrismaService } from '@shared/database/prisma.service';
+import { CacheService } from '@shared/cache/cache.service';
 import { PrismaRolesRepository } from './prisma-roles.repository';
 
 type PermissionClient = { findMany: jest.Mock };
@@ -89,7 +91,10 @@ describe('PrismaRolesRepository', () => {
         fn(tx),
       ),
     };
-    repo = new PrismaRolesRepository(prisma as unknown as PrismaService);
+    repo = new PrismaRolesRepository(
+      prisma as unknown as PrismaService,
+      new CacheService(createCache()),
+    );
   });
 
   describe('create', () => {

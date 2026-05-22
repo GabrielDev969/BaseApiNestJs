@@ -59,19 +59,14 @@ describe('PrismaUsersRepository', () => {
       passwordResetToken: { deleteMany: jest.fn() },
       $transaction: jest.fn().mockResolvedValue([]),
     };
-    repo = new PrismaUsersRepository(prisma as unknown as PrismaService);
-  });
-
-  afterEach(() => {
-    (CacheService as unknown as { _instance: CacheService | null })._instance =
-      null;
+    repo = new PrismaUsersRepository(
+      prisma as unknown as PrismaService,
+      new CacheService(createCache()),
+    );
   });
 
   describe('with cache enabled — exercises @Cacheable key arrows', () => {
     it('findById and findByIdInWorkspace serve from cache on repeat call', async () => {
-      const cache = createCache();
-      new CacheService(cache).onModuleInit();
-
       prisma.user.findFirst.mockResolvedValue(baseUser);
       await repo.findById('u1');
       await repo.findById('u1');

@@ -5,9 +5,11 @@ import {
   getPrisma,
 } from './helpers/test-database';
 import { seedPermissions } from './helpers/seed-permissions';
+import { createCache } from 'cache-manager';
 import { PrismaWorkspacesRepository } from '../src/modules/workspaces/repositories/prisma-workspaces.repository';
 import { PrismaUsersRepository } from '../src/modules/users/repositories/prisma-users.repository';
 import { PrismaService } from '../src/shared/database/prisma.service';
+import { CacheService } from '../src/shared/cache/cache.service';
 import { ALL_PERMISSION_KEYS } from '../src/modules/rbac/constants/permissions';
 
 describe('PrismaWorkspacesRepository (integration)', () => {
@@ -17,8 +19,9 @@ describe('PrismaWorkspacesRepository (integration)', () => {
   beforeAll(async () => {
     await startTestDatabase();
     const prisma = getPrisma() as unknown as PrismaService;
-    workspaces = new PrismaWorkspacesRepository(prisma);
-    users = new PrismaUsersRepository(prisma);
+    const cacheService = new CacheService(createCache());
+    workspaces = new PrismaWorkspacesRepository(prisma, cacheService);
+    users = new PrismaUsersRepository(prisma, cacheService);
   });
 
   afterAll(async () => {

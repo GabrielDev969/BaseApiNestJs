@@ -6,10 +6,12 @@ import {
   getPrisma,
 } from './helpers/test-database';
 import { seedPermissions } from './helpers/seed-permissions';
+import { createCache } from 'cache-manager';
 import { PrismaRolesRepository } from '../src/modules/rbac/repositories/prisma-roles.repository';
 import { PrismaWorkspacesRepository } from '../src/modules/workspaces/repositories/prisma-workspaces.repository';
 import { PrismaUsersRepository } from '../src/modules/users/repositories/prisma-users.repository';
 import { PrismaService } from '../src/shared/database/prisma.service';
+import { CacheService } from '../src/shared/cache/cache.service';
 import { PERMISSIONS } from '../src/modules/rbac/constants/permissions';
 
 describe('PrismaRolesRepository (integration)', () => {
@@ -21,9 +23,10 @@ describe('PrismaRolesRepository (integration)', () => {
   beforeAll(async () => {
     await startTestDatabase();
     const prisma = getPrisma() as unknown as PrismaService;
-    roles = new PrismaRolesRepository(prisma);
-    workspaces = new PrismaWorkspacesRepository(prisma);
-    users = new PrismaUsersRepository(prisma);
+    const cacheService = new CacheService(createCache());
+    roles = new PrismaRolesRepository(prisma, cacheService);
+    workspaces = new PrismaWorkspacesRepository(prisma, cacheService);
+    users = new PrismaUsersRepository(prisma, cacheService);
   });
 
   afterAll(async () => {

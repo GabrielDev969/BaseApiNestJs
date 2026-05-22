@@ -1,4 +1,6 @@
+import { createCache } from 'cache-manager';
 import { PrismaService } from '@shared/database/prisma.service';
+import { CacheService } from '@shared/cache/cache.service';
 import { PrismaWorkspacesRepository } from './prisma-workspaces.repository';
 
 type WorkspaceClient = {
@@ -71,7 +73,10 @@ describe('PrismaWorkspacesRepository', () => {
         return Promise.all(arg as Promise<unknown>[]);
       }),
     };
-    repo = new PrismaWorkspacesRepository(prisma as unknown as PrismaService);
+    repo = new PrismaWorkspacesRepository(
+      prisma as unknown as PrismaService,
+      new CacheService(createCache()),
+    );
   });
 
   describe('createWithDefaults', () => {

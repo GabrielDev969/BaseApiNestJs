@@ -48,12 +48,6 @@ describe('CacheService', () => {
   beforeEach(() => {
     const cache = createCache();
     svc = new CacheService(cache);
-    svc.onModuleInit();
-  });
-
-  afterEach(() => {
-    (CacheService as unknown as { _instance: CacheService | null })._instance =
-      null;
   });
 
   it('set/get round-trips a value', async () => {
@@ -102,10 +96,6 @@ describe('CacheService', () => {
     expect(await svc.buildKey('users', 'id:123')).toBe('users:v2:id:123');
   });
 
-  it('static instance points to the initialized service', () => {
-    expect(CacheService.instance).toBe(svc);
-  });
-
   describe('with Redis namespace-version store', () => {
     let nsver: FakeNamespaceVersionStore;
     let redisSvc: CacheService;
@@ -114,7 +104,6 @@ describe('CacheService', () => {
       const cache = createCache();
       nsver = new FakeNamespaceVersionStore();
       redisSvc = new CacheService(cache, nsver);
-      redisSvc.onModuleInit();
     });
 
     it('first bump initializes via SETNX+INCR and leaves version at 2', async () => {

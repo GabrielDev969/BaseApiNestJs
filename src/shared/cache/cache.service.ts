@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit, Optional } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 
 export const CACHE_NSVER_REDIS = 'CACHE_NSVER_REDIS';
@@ -15,23 +15,13 @@ export interface NamespaceVersionStore {
 }
 
 @Injectable()
-export class CacheService implements OnModuleInit {
-  private static _instance: CacheService | null = null;
-
-  static get instance(): CacheService | null {
-    return CacheService._instance;
-  }
-
+export class CacheService {
   constructor(
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
     @Optional()
     @Inject(CACHE_NSVER_REDIS)
     private readonly nsverRedis: NamespaceVersionStore | null = null,
   ) {}
-
-  onModuleInit(): void {
-    CacheService._instance = this;
-  }
 
   async get<T>(key: string): Promise<T | null> {
     return (await this.cache.get<T>(key)) ?? null;
