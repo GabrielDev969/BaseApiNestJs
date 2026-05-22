@@ -7,6 +7,7 @@ import { PrismaPermissionsRepository } from './prisma-permissions.repository';
 type PermissionClient = {
   findMany: jest.Mock;
   findUnique: jest.Mock;
+  findFirst: jest.Mock;
 };
 
 type PrismaMock = { permission: PermissionClient };
@@ -20,6 +21,7 @@ describe('PrismaPermissionsRepository', () => {
     key: 'user:read',
     description: 'Read users',
     category: 'user',
+    workspaceId: null as string | null,
   };
 
   let cacheService: CacheService;
@@ -29,6 +31,7 @@ describe('PrismaPermissionsRepository', () => {
       permission: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
       },
     };
     cacheService = new CacheService(createCache());
@@ -48,12 +51,13 @@ describe('PrismaPermissionsRepository', () => {
   });
 
   describe('findAll', () => {
-    it('returns mapped permissions ordered by category then key', async () => {
+    it('returns mapped global permissions ordered by category then key', async () => {
       prisma.permission.findMany.mockResolvedValue([baseRow]);
 
       const result = await repo.findAll();
 
       expect(prisma.permission.findMany).toHaveBeenCalledWith({
+        where: { workspaceId: null },
         orderBy: [{ category: 'asc' }, { key: 'asc' }],
       });
       expect(result).toEqual([baseRow]);
@@ -66,27 +70,27 @@ describe('PrismaPermissionsRepository', () => {
   });
 
   describe('findByKey', () => {
-    it('returns mapped entity', async () => {
-      prisma.permission.findUnique.mockResolvedValue(baseRow);
+    it('returns mapped entity scoped to global permissions', async () => {
+      prisma.permission.findFirst.mockResolvedValue(baseRow);
       const result = await repo.findByKey('user:read');
-      expect(prisma.permission.findUnique).toHaveBeenCalledWith({
-        where: { key: 'user:read' },
+      expect(prisma.permission.findFirst).toHaveBeenCalledWith({
+        where: { key: 'user:read', workspaceId: null },
       });
       expect(result?.key).toBe('user:read');
     });
 
     it('returns null when not found', async () => {
-      prisma.permission.findUnique.mockResolvedValue(null);
+      prisma.permission.findFirst.mockResolvedValue(null);
       expect(await repo.findByKey('missing')).toBeNull();
     });
   });
 
   describe('findManyByKeys', () => {
-    it('returns mapped permissions for given keys', async () => {
+    it('returns mapped global permissions for given keys', async () => {
       prisma.permission.findMany.mockResolvedValue([baseRow]);
       const result = await repo.findManyByKeys(['user:read']);
       expect(prisma.permission.findMany).toHaveBeenCalledWith({
-        where: { key: { in: ['user:read'] } },
+        where: { key: { in: ['user:read'] }, workspaceId: null },
       });
       expect(result).toHaveLength(1);
     });
@@ -98,11 +102,11 @@ describe('PrismaPermissionsRepository', () => {
   });
 
   describe('findByCategory', () => {
-    it('returns mapped permissions filtered by category', async () => {
+    it('returns mapped global permissions filtered by category', async () => {
       prisma.permission.findMany.mockResolvedValue([baseRow]);
       const result = await repo.findByCategory('user');
       expect(prisma.permission.findMany).toHaveBeenCalledWith({
-        where: { category: 'user' },
+        where: { category: 'user', workspaceId: null },
         orderBy: { key: 'asc' },
       });
       expect(result[0].category).toBe('user');

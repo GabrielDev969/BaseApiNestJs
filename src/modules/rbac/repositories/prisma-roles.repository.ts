@@ -35,7 +35,10 @@ export class PrismaRolesRepository extends RolesRepository {
   @InvalidateCache(CACHE_NS.roles)
   async create(data: CreateRoleData): Promise<RoleWithPermissions> {
     const perms = await this.prisma.permission.findMany({
-      where: { key: { in: data.permissionKeys } },
+      where: {
+        key: { in: data.permissionKeys },
+        OR: [{ workspaceId: null }, { workspaceId: data.workspaceId }],
+      },
     });
 
     if (perms.length !== data.permissionKeys.length) {
@@ -124,8 +127,15 @@ export class PrismaRolesRepository extends RolesRepository {
 
       // Replace permissions atomically if provided
       if (data.permissionKeys) {
+        const target = await tx.role.findUniqueOrThrow({
+          where: { id },
+          select: { workspaceId: true },
+        });
         const perms = await tx.permission.findMany({
-          where: { key: { in: data.permissionKeys } },
+          where: {
+            key: { in: data.permissionKeys },
+            OR: [{ workspaceId: null }, { workspaceId: target.workspaceId }],
+          },
         });
 
         if (perms.length !== data.permissionKeys.length) {
@@ -177,6 +187,7 @@ export class PrismaRolesRepository extends RolesRepository {
       key: raw.key,
       description: raw.description,
       category: raw.category,
+      workspaceId: raw.workspaceId,
     };
   }
 

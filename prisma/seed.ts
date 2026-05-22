@@ -98,11 +98,18 @@ function readSuperAdminEnv(): SuperAdminEnv {
 async function seedPermissions(): Promise<string[]> {
   console.log('🌱 Seeding permissions...');
   for (const perm of PERMISSIONS) {
-    await prisma.permission.upsert({
-      where: { key: perm.key },
-      update: { description: perm.description, category: perm.category },
-      create: perm,
+    const existing = await prisma.permission.findFirst({
+      where: { key: perm.key, workspaceId: null },
+      select: { id: true },
     });
+    if (existing) {
+      await prisma.permission.update({
+        where: { id: existing.id },
+        data: { description: perm.description, category: perm.category },
+      });
+    } else {
+      await prisma.permission.create({ data: { ...perm, workspaceId: null } });
+    }
   }
   console.log(`✅ ${PERMISSIONS.length} permissions seeded`);
   return PERMISSIONS.map((p) => p.key);

@@ -109,6 +109,7 @@ model Workspace {
   roles       Role[]
   invitations Invitation[]
   auditLogs   AuditLog[]
+  permissions Permission[]
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())
@@ -171,11 +172,18 @@ model Role {
 
 model Permission {
   id          String  @id @default(uuid())
-  key         String  @unique
+  key         String
   description String?
   category    String
+  workspaceId String?
 
-  roles RolePermission[]
+  workspace Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  roles     RolePermission[]
+
+  // Uniqueness is enforced by partial unique indexes created in migration SQL:
+  //   - one row per key when workspaceId IS NULL  (global permissions)
+  //   - one row per (workspaceId, key) when workspaceId IS NOT NULL
+  @@index([workspaceId])
 }
 
 model RolePermission {

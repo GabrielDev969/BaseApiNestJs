@@ -112,7 +112,10 @@ describe('PrismaRolesRepository', () => {
       });
 
       expect(prisma.permission.findMany).toHaveBeenCalledWith({
-        where: { key: { in: ['user:read'] } },
+        where: {
+          key: { in: ['user:read'] },
+          OR: [{ workspaceId: null }, { workspaceId: 'w1' }],
+        },
       });
       expect(prisma.role.create).toHaveBeenCalledWith({
         data: {
@@ -290,6 +293,7 @@ describe('PrismaRolesRepository', () => {
     });
 
     it('throws UnknownPermissionsError when permission keys are unknown', async () => {
+      tx.role.findUniqueOrThrow.mockResolvedValue(baseRoleRow);
       tx.permission.findMany.mockResolvedValue([
         { id: 'p1', key: 'user:read' },
       ]);

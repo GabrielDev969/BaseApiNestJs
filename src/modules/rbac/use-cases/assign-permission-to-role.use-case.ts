@@ -31,7 +31,10 @@ export class AssignPermissionToRoleUseCase {
     if (role.isSystem)
       throw new ForbiddenException('System roles cannot be modified');
 
-    const permission = await this.permissions.findByKey(input.permissionKey);
+    const permission = await this.permissions.findByKeyInScope(
+      input.permissionKey,
+      input.workspaceId,
+    );
     if (!permission)
       throw new NotFoundException(
         `Permission "${input.permissionKey}" does not exist`,
